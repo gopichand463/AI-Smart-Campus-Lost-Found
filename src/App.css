@@ -1,0 +1,172 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Navbar */
+
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 50px;
+  background-color: #1f2937;
+  color: white;
+}
+
+nav h2 {
+  font-size: 20px;
+}
+
+nav div {
+  display: flex;
+  gap: 25px;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  font-size: 18px;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+
+/* Hero Section */
+
+.hero {
+  text-align: center;
+  padding: 100px 20px 80px;
+}
+
+.hero h1 {
+  font-size: 42px;
+  margin-bottom: 20px;
+}
+
+.hero p {
+  font-size: 20px;
+  margin-bottom: 35px;
+}
+
+
+/* Hero Buttons */
+
+.hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.hero-button {
+  display: inline-block;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 6px;
+  background-color: #2563eb;
+  color: white;
+  font-size: 16px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.hero-button:hover {
+  background-color: #1d4ed8;
+}
+
+
+/* How It Works */
+
+.how-it-works {
+  text-align: center;
+  padding: 70px 50px;
+}
+
+.how-it-works h2 {
+  font-size: 32px;
+  margin-bottom: 40px;
+}
+
+
+/* Three Cards */
+
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+}
+
+.step-card {
+  width: 280px;
+  padding: 30px;
+  border-radius: 10px;
+  background-color: #1f2937;
+}
+
+.step-card h3 {
+  margin-bottom: 15px;
+  font-size: 22px;
+}
+
+.step-card p {
+  line-height: 1.6;
+}
+
+.report-page {
+  min-height: calc(100vh - 80px);
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.report-page h1 {
+  font-size: 48px;
+  margin-bottom: 30px;
+}
+
+.report-page form {
+  width: 500px;
+  max-width: 90%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.report-page label {
+  font-size: 18px;
+  margin-top: 10px;
+}
+
+.report-page input,
+.report-page textarea {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid #555;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.report-page textarea {
+  height: 100px;
+  resize: vertical;
+}
+
+.report-page button {
+  margin-top: 15px;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  background-color: #2563eb;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.report-page button:hover {
+  background-color: #1d4ed8;
+}

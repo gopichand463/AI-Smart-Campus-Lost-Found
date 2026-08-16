@@ -170,3 +170,52 @@ nav a:hover {
 .report-page button:hover {
   background-color: #1d4ed8;
 }
+.auth-page {
+  min-height: calc(100vh - 80px);
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.auth-page h1 {
+  font-size: 48px;
+  margin-bottom: 30px;
+}
+
+.auth-page form {
+  width: 500px;
+  max-width: 90%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.auth-page label {
+  font-size: 18px;
+  margin-top: 10px;
+}
+
+.auth-page input {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid #555;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.auth-page button {
+  margin-top: 15px;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  background-color: #2563eb;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.auth-page button:hover {
+  background-color: #1d4ed8;
+}

@@ -1,9 +1,23 @@
 function Login() {
   return (
-    <div>
+    <div className="auth-page">
       <h1>Login</h1>
 
-      <p>Login page coming soon.</p>
+      <form>
+        <label>Email</label>
+        <input
+          type="email"
+          placeholder="Enter your email"
+        />
+
+        <label>Password</label>
+        <input
+          type="password"
+          placeholder="Enter your password"
+        />
+
+        <button type="submit">Login</button>
+      </form>
     </div>
   );
 }

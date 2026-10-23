@@ -60,3 +60,8 @@ pnpm-debug.log*
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Large image dataset files
+data/images/*
+!data/images/README.md
+

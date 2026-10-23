@@ -712,50 +712,42 @@ Run the machine learning scripts using the Python interpreter associated with th
 The following is a suggested structure for organizing the project as development progresses.
 
 ```text
-AI-Smart-Campus-Lost-Found/
+smart-campus-lost-found/
 │
-├── frontend/
+├── frontend/             # React SPA user interface (reporting, search, predictions, claims)
 │   ├── public/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
 │   │   ├── assets/
-│   │   ├── services/
 │   │   ├── App.jsx
 │   │   └── main.jsx
 │   ├── package.json
 │   └── vite.config.js
 │
-├── backend/
-│   ├── config/
-│   ├── routes/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── server.js
-│   ├── package.json
-│   └── .env.example
+├── backend/              # Node.js + Express REST API (auth, data ingestion, ML integration)
 │
-├── ml/
-│   ├── data/
-│   ├── notebooks/
-│   ├── src/
-│   │   ├── preprocessing.py
-│   │   ├── train.py
-│   │   └── evaluate.py
-│   ├── models/
-│   └── requirements.txt
+├── ml-service/           # Python ML service (scikit-learn training, preprocessing, prediction API)
+│   ├── models/           # Exported trained models (joblib / onnx artifacts)
+│   ├── pipelines/        # Scikit-learn preprocessing pipelines & transformers
+│   │   └── preprocessing.py
+│   └── run_preprocessing.py
 │
-├── database/
+├── data/                 # 120k dataset and processed data splits
+│   ├── smart_campus_dataset_120k.csv
+│   └── smart_campus_processed_120k.csv
+│
+├── notebooks/            # Jupyter notebooks for EDA and model development
+│   └── 01_data_preprocessing.ipynb
+│
+├── database/             # MySQL schema definitions & migrations
 │   └── schema.sql
 │
-├── docs/
-│   └── SRS.md
+├── docs/                 # Architecture diagrams, SRS references, and API docs
 │
 ├── .gitignore
 └── README.md
 ```
-
-**Note:** This tree represents the proposed organization, not a verified listing of the current repository. Keep the README aligned with the actual folders and files as they are created.
 
 ---
 

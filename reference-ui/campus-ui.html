@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Campus Lost & Found</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Babel for JSX/TSX in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Import Map for React & Lucide Icons -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react"
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#121412] text-[#F3F3EC]">
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module" data-presets="react,typescript">
+    import React, { useState, useMemo, useRef } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import {
+      Search, MapPin, Calendar, Tag, ShieldCheck, AlertCircle, CheckCircle2,
+      Clock, SlidersHorizontal, ArrowRight, Upload, X, Eye, EyeOff, Layers,
+      LayoutDashboard, FileText, GitCompare, BarChart3, LogOut, ChevronRight,
+      ChevronLeft, Info, Check, Sparkles, Lock, RefreshCw, FolderSearch, Camera
+    } from 'lucide-react';
+
+    const INITIAL_DEMO_REPORTS = [
+      {
+        id: 'CMP-2026-841',
+        title: 'Black Backpack',
+        reportType: 'Lost',
+        recoveryStatus: 'Pending',
+        category: 'Bags',
+        brand: 'Aer',
+        color: 'Matte Black',
+        distinguishingFeatures: 'Padded 15-inch laptop compartment and a small braided paracord keychain on the right zipper.',
+        description: 'Black backpack with a laptop compartment and a small keychain. Left near the quiet study carrels on the third floor.',
+        location: 'Central Library',
+        specificArea: '3rd Floor Quiet Study Wing',
+        date: '2026-10-21',
+        approximateTime: '16:30',
+        imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=80',
+        imageAlt: 'Matte black nylon backpack resting upright with visible front zipper compartment',
+        isDemoData: true,
+        timeline: [
+          { id: 't1', label: 'Report Submitted', date: 'Oct 21, 2026 • 17:05', actor: 'Student Reporter' },
+          { id: 't2', label: 'OpenCV Preprocessing & Feature Indexing Complete', date: 'Oct 21, 2026 • 17:06', actor: 'Visual Pipeline' }
+        ],
+        mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Recovered' }
+      },
+      {
+        id: 'CMP-2026-842',
+        title: 'Stainless-Steel Bottle',
+        reportType: 'Found',
+        recoveryStatus: 'Pending',
+        category: 'Water Bottles',
+        brand: 'Hydro Flask',
+        color: 'Brushed Silver',
+        distinguishingFeatures: 'Slight dent near bottom rim, black wide-mouth flex cap, no stickers.',
+        description: 'Silver insulated bottle discovered near a classroom lecture podium after the afternoon thermodynamics seminar.',
+        location: 'Engineering Block',
+        specificArea: 'Lecture Hall EN-204',
+        date: '2026-10-22',
+        approximateTime: '14:15',
+        imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=80',
+        imageAlt: 'Brushed stainless steel insulated water bottle with a matte black screw cap',
+        isDemoData: true,
+        timeline: [
+          { id: 't3', label: 'Found Item Logged', date: 'Oct 22, 2026 • 14:30', actor: 'Campus Finder' },
+          { id: 't4', label: 'Stored at Engineering Front Desk', date: 'Oct 22, 2026 • 15:00', actor: 'Operator #04' }
+        ],
+        mlEvaluation: { algorithm: 'Gradient Boosting', predictedStatus: 'Pending' }
+      },
+      {
+        id: 'CMP-2026-845',
+        title: 'Wireless Headphones',
+        reportType: 'Lost',
+        recoveryStatus: 'Pending',
+        category: 'Electronics',
+        brand: 'Sony',
+        color: 'Charcoal Black',
+        distinguishingFeatures: 'Minor scuff on the left earcup swivel hinge; stored inside a compact hard-shell travel case.',
+        description: 'Dark wireless headphones in a compact charging case. Misplaced at the west patio tables during lunch hour.',
+        location: 'Student Cafeteria',
+        specificArea: 'West Espresso Seating Area',
+        date: '2026-10-23',
+        approximateTime: '12:45',
+        imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80',
+        imageAlt: 'Over-ear matte black wireless headphones angled on a dark surface',
+        isDemoData: true,
+        timeline: [
+          { id: 't5', label: 'Report Submitted', date: 'Oct 23, 2026 • 13:20', actor: 'Student Reporter' }
+        ],
+        mlEvaluation: { algorithm: 'Logistic Regression', predictedStatus: 'Pending' }
+      },
+      {
+        id: 'CMP-2026-849',
+        title: 'Scientific Calculator',
+        reportType: 'Found',
+        recoveryStatus: 'Pending',
+        category: 'Electronics',
+        brand: 'Casio fx-991EX',
+        color: 'Dark Slate / White Keys',
+        distinguishingFeatures: 'Slide-on hard cover included; initials "R.K." lightly etched on the back plastic casing.',
+        description: 'Calculator discovered after a classroom session on linear algebra.',
+        location: 'Mathematics Block',
+        specificArea: 'Seminar Room MB-108',
+        date: '2026-10-24',
+        approximateTime: '11:00',
+        imageUrl: 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?auto=format&fit=crop&w=900&q=80',
+        imageAlt: 'Scientific calculator with LCD display and function keys',
+        isDemoData: true,
+        timeline: [
+          { id: 't6', label: 'Report Submitted', date: 'Oct 24, 2026 • 11:15', actor: 'Faculty Member' },
+          { id: 't7', label: 'Potential Match Flagged for Review', date: 'Oct 24, 2026 • 11:40', actor: 'Feature Matcher' }
+        ],
+        mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Recovered' }
+      },
+      {
+        id: 'CMP-2026-852',
+        title: 'Dark Cordura Daypack',
+        reportType: 'Found',
+        recoveryStatus: 'Pending',
+        category: 'Bags',
+        brand: 'Aer / Unbranded',
+        color: 'Black',
+        distinguishingFeatures: 'Contains a 15-inch laptop sleeve and a small cord zipper pull on the side pocket.',
+        description: 'Found resting beside the return book drop near the 3rd floor elevators.',
+        location: 'Central Library',
+        specificArea: '3rd Floor Elevator Lobby',
+        date: '2026-10-22',
+        approximateTime: '09:10',
+        imageUrl: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=900&q=80',
+        imageAlt: 'Dark structured Cordura backpack photographed in studio light',
+        isDemoData: true,
+        timeline: [
+          { id: 't8', label: 'Report Submitted', date: 'Oct 22, 2026 • 09:20', actor: 'Library Staff' },
+          { id: 't9', label: 'Candidate Match Linked (CMP-2026-841)', date: 'Oct 22, 2026 • 09:22', actor: 'MobileNet Feature Index' }
+        ],
+        mlEvaluation: { algorithm: 'Gradient Boosting', predictedStatus: 'Recovered' }
+      },
+      {
+        id: 'CMP-2026-830',
+        title: 'Keyring with Brass Fob',
+        reportType: 'Found',
+        recoveryStatus: 'Recovered',
+        category: 'Keys',
+        brand: 'Assa Abloy / Dorm Key',
+        color: 'Brass & Matte Black Leather',
+        distinguishingFeatures: 'Three silver cylinder keys attached to a dark vegetable-tanned leather loop.',
+        description: 'Turned in at the Athletics Complex turnstile after evening intramural practice.',
+        location: 'Sports Complex',
+        specificArea: 'Main Entrance Turnstile',
+        date: '2026-10-19',
+        approximateTime: '19:45',
+        imageUrl: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=900&q=80',
+        imageAlt: 'Set of metallic keys on a dark keyring',
+        isDemoData: true,
+        timeline: [
+          { id: 't10', label: 'Report Submitted', date: 'Oct 19, 2026 • 20:00', actor: 'Campus Security' },
+          { id: 't11', label: 'Claimant Verified via Key Code & ID', date: 'Oct 20, 2026 • 10:15', actor: 'Operator #02' },
+          { id: 't12', label: 'Status Updated to Recovered', date: 'Oct 20, 2026 • 10:18', actor: 'Operator #02' }
+        ],
+        mlEvaluation: { algorithm: 'Decision Tree', predictedStatus: 'Recovered' }
+      }
+    ];
+
+    const CAMPUS_LOCATIONS = [
+      'All Locations', 'Central Library', 'Engineering Block', 'Student Cafeteria',
+      'Mathematics Block', 'Sports Complex', 'Science & Research Center', 'Administration Hall'
+    ];
+
+    const CATEGORIES = [
+      'All Items', 'Bags', 'Electronics', 'Water Bottles', 'ID Cards',
+      'Keys', 'Books & Stationery', 'Accessories', 'Other'
+    ];
+
+    function App() {
+      const [activeView, setActiveView] = useState('home');
+      const [operatorTab, setOperatorTab] = useState('overview');
+      const [isOperatorAuthenticated, setIsOperatorAuthenticated] = useState(false);
+      const [operatorUser, setOperatorUser] = useState(null);
+      const [dataSourceMode, setDataSourceMode] = useState('demo');
+      const [reports, setReports] = useState(INITIAL_DEMO_REPORTS);
+
+      const [searchQuery, setSearchQuery] = useState('');
+      const [selectedCategory, setSelectedCategory] = useState('All Items');
+      const [selectedReportType, setSelectedReportType] = useState('All');
+      const [selectedRecoveryStatus, setSelectedRecoveryStatus] = useState('All');
+      const [selectedLocation, setSelectedLocation] = useState('All Locations');
+
+      const [activeItemModal, setActiveItemModal] = useState(null);
+      const [activeComparisonPair, setActiveComparisonPair] = useState(null);
+      const [statusConfirmTarget, setStatusConfirmTarget] = useState(null);
+      const [toast, setToast] = useState(null);
+
+      const triggerToast = (message, tone = 'green') => {
+        setToast({ message, tone });
+        setTimeout(() => setToast(null), 4200);
+      };
+
+      const filteredReports = useMemo(() => {
+        return reports.filter((item) => {
+          const matchesSearch =
+            searchQuery.trim() === '' ||
+            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.id.toLowerCase().includes(searchQuery.toLowerCase());
+          const matchesCategory = selectedCategory === 'All Items' || item.category === selectedCategory;
+          const matchesType = selectedReportType === 'All' || item.reportType === selectedReportType;
+          const matchesStatus = selectedRecoveryStatus === 'All' || item.recoveryStatus === selectedRecoveryStatus;
+          const matchesLocation = selectedLocation === 'All Locations' || item.location === selectedLocation;
+          return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesLocation;
+        });
+      }, [reports, searchQuery, selectedCategory, selectedReportType, selectedRecoveryStatus, selectedLocation]);
+
+      const matchSuggestions = useMemo(() => {
+        const lostPool = reports.filter((r) => r.reportType === 'Lost' && r.recoveryStatus === 'Pending');
+        const foundPool = reports.filter((r) => r.reportType === 'Found' && r.recoveryStatus === 'Pending');
+        const pairs = [];
+        lostPool.forEach((lost) => {
+          foundPool.forEach((found) => {
+            if (lost.category === found.category) {
+              const isBackpackDemoPair = lost.id === 'CMP-2026-841' && found.id === 'CMP-2026-852';
+              pairs.push({
+                id: `MATCH-${lost.id}-${found.id}`,
+                lostReport: lost,
+                foundReport: found,
+                opencvStage: 'OpenCV Bilateral Filtering, CLAHE Contrast Normalization & 224x224 Resize',
+                cnnCategoryLabel: `CNN Object Class: ${lost.category}`,
+                embeddingMethod: 'MobileNetV2 Feature Vector (Cosine Similarity)',
+                similarityScore: isBackpackDemoPair ? 82 : null,
+                sharedCharacteristics: [
+                  `Category: ${lost.category}`,
+                  `Primary Color: ${lost.color} / ${found.color}`,
+                  `Proximity: ${lost.location === found.location ? `Same building (${lost.location})` : `${lost.location} ↔ ${found.location}`}`,
+                  '15-inch laptop sleeve & cord zipper hardware'
+                ]
+              });
+            }
+          });
+        });
+        return pairs;
+      }, [reports]);
+
+      const resetAllFilters = () => {
+        setSearchQuery('');
+        setSelectedCategory('All Items');
+        setSelectedReportType('All');
+        setSelectedRecoveryStatus('All');
+        setSelectedLocation('All Locations');
+      };
+
+      const handleConfirmStatusUpdate = () => {
+        if (!statusConfirmTarget) return;
+        const { report, nextStatus } = statusConfirmTarget;
+        setReports((prev) =>
+          prev.map((item) => {
+            if (item.id !== report.id) return item;
+            return {
+              ...item,
+              recoveryStatus: nextStatus,
+              timeline: [
+                ...item.timeline,
+                {
+                  id: `tl-${Date.now()}`,
+                  label: `Recovery Status Updated to ${nextStatus}`,
+                  date: 'Oct 26, 2026 • Just now',
+                  actor: operatorUser ? `${operatorUser.name} (${operatorUser.badgeId})` : 'Authorized Operator'
+                }
+              ]
+            };
+          })
+        );
+        setStatusConfirmTarget(null);
+        triggerToast(`Report ${report.id} marked as ${nextStatus}.`, 'green');
+      };
+
+      return (
+        <div className="min-h-screen bg-[#121412] text-[#F3F3EC] font-sans flex flex-col">
+          <div className="bg-[#1B201C] border-b border-[#303831] px-4 py-2 text-xs text-[#9CA69F]">
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#174D35]/40 border border-[#2E8B57]/40 text-[#F3F3EC] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2E8B57]" />
+                  {dataSourceMode === 'demo' ? 'Demonstration Dataset Active' : 'Connected to Node.js / MySQL API'}
+                </span>
+                <span>Sample records are explicitly labeled for presentation evaluation.</span>
+              </div>
+              <button
+                onClick={() => {
+                  const next = dataSourceMode === 'demo' ? 'live-api' : 'demo';
+                  setDataSourceMode(next);
+                  triggerToast(next === 'demo' ? 'Switched to labeled Demonstration Dataset.' : 'API Probe: Preserving session state.', 'neutral');
+                }}
+                className="underline hover:text-[#F3F3EC]"
+              >
+                Toggle Data Source Mode
+              </button>
+            </div>
+          </div>
+
+          <header className="sticky top-0 z-40 backdrop-blur-md bg-[#121412]/90 border-b border-[#303831]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              <button onClick={() => setActiveView('home')} className="flex items-center gap-3 text-left">
+                <div className="w-9 h-9 rounded-lg bg-[#1B201C] border border-[#303831] flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-[#2E8B57]" />
+                </div>
+                <div>
+                  <span className="block font-bold tracking-tight text-base text-[#F3F3EC] leading-none">Smart Campus</span>
+                  <span className="block text-[10px] font-mono tracking-[0.18em] text-[#9CA69F] mt-1">LOST &amp; FOUND</span>
+                </div>
+              </button>
+
+              <nav className="hidden md:flex items-center gap-1">
+                {[
+                  { id: 'home', label: 'Home' },
+                  { id: 'matches', label: `Possible Matches (${matchSuggestions.length})` },
+                  { id: 'how-it-works', label: 'How It Works & AI Architecture' }
+                ].map((nav) => (
+                  <button
+                    key={nav.id}
+                    onClick={() => setActiveView(nav.id)}
+                    className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeView === nav.id ? 'bg-[#1B201C] text-[#F3F3EC] border border-[#303831]' : 'text-[#9CA69F] hover:text-[#F3F3EC]'
+                    }`}
+                  >
+                    {nav.label}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="flex items-center gap-2.5">
+                {isOperatorAuthenticated ? (
+                  <button
+                    onClick={() => setActiveView('operator-dashboard')}
+                    className="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#1B201C] text-[#F3F3EC] border border-[#2E8B57]/60 flex items-center gap-2"
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-[#2E8B57]" />
+                    <span>Operator Console</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActiveView('operator-login')}
+                    className="px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-[#9CA69F] hover:text-[#F3F3EC]"
+                  >
+                    Operator Sign In
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveView('report-lost')}
+                  className="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#C6283D] hover:bg-[#a82032] text-[#F3F3EC]"
+                >
+                  Report an Item
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {toast && (
+            <div className="fixed bottom-5 right-5 z-50 max-w-md rounded-xl bg-[#1B201C] border border-[#303831] px-4 py-3 shadow-2xl flex items-center gap-3">
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${toast.tone === 'green' ? 'bg-[#2E8B57]' : toast.tone === 'crimson' ? 'bg-[#C6283D]' : 'bg-[#9CA69F]'}`} />
+              <p className="text-sm text-[#F3F3EC]">{toast.message}</p>
+              <button onClick={() => setToast(null)} className="text-[#9CA69F] hover:text-[#F3F3EC] p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <main className="flex-1">
+            {activeView === 'home' && (
+              <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center border-b border-[#303831] pb-12">
+                  <div className="lg:col-span-6 space-y-5">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#1B201C] border border-[#303831]">
+                      <span className="w-2 h-2 rounded-full bg-[#2E8B57]" />
+                      <span className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#9CA69F]">YOUR CAMPUS. YOUR BELONGINGS. ONE PLACE.</span>
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[#F3F3EC] leading-tight">
+                      Lost something? <span className="block mt-1 underline decoration-[#2E8B57] decoration-4 underline-offset-8">Let's bring it back.</span>
+                    </h1>
+                    <p className="text-base text-[#9CA69F] max-w-xl">
+                      Find your lost belongings, report items you've discovered, and explore potential matches through one intelligent campus platform.
+                    </p>
+                    <div className="flex flex-wrap gap-3 pt-2">
+                      <button onClick={() => setActiveView('report-lost')} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium bg-[#C6283D] hover:bg-[#b02235] text-[#F3F3EC]">
+                        <AlertCircle className="w-4 h-4" /> Report Lost Item
+                      </button>
+                      <button onClick={() => setActiveView('report-found')} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium bg-[#174D35] hover:bg-[#1f6345] text-[#F3F3EC] border border-[#2E8B57]/50">
+                        <CheckCircle2 className="w-4 h-4 text-[#2E8B57]" /> I Found Something
+                      </button>
+                    </div>
+                  </div>
+                  <div className="lg:col-span-6 grid grid-cols-2 gap-4">
+                    <img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80" className="rounded-2xl h-64 w-full object-cover border border-[#303831]" />
+                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80" className="rounded-2xl h-64 w-full object-cover border border-[#303831]" />
+                  </div>
+                </div>
+
+                {/* Search & Filters */}
+                <div className="bg-[#1B201C] border border-[#303831] rounded-2xl p-5 space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                    <div className="lg:col-span-6 relative">
+                      <Search className="w-4 h-4 text-[#9CA69F] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search backpack, bottle, headphones, ID card..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <select value={selectedReportType}                       onChange={(e) => setSelectedReportType(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]">
+                        <option value="All">All Types</option>
+                        <option value="Lost">Lost Only</option>
+                        <option value="Found">Found Only</option>
+                      </select>
+                    </div>
+                    <div className="lg:col-span-2">
+                      <select value={selectedRecoveryStatus}                       onChange={(e) => setSelectedRecoveryStatus(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]">
+                        <option value="All">All Statuses</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Recovered">Recovered</option>
+                        <option value="Closed">Closed</option>
+                      </select>
+                    </div>
+                    <div className="lg:col-span-2">
+                      <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]">
+                        {CAMPUS_LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                          selectedCategory === cat ? 'bg-[#174D35] text-[#F3F3EC] border border-[#2E8B57]' : 'bg-[#121412] text-[#9CA69F] border border-[#303831]'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredReports.map((item) => (
+                    <article key={item.id} className="rounded-2xl bg-[#1B201C] border border-[#303831] overflow-hidden flex flex-col justify-between shadow-lg">
+                      <div>
+                        <div className="relative h-52 bg-[#121412]">
+                          <img src={item.imageUrl} alt={item.imageAlt} className="w-full h-full object-cover" />
+                          <div className="absolute top-3 left-3">
+                            <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${item.reportType === 'Lost' ? 'bg-[#801F30] border border-[#C6283D]' : 'bg-[#174D35] border border-[#2E8B57]'}`}>
+                              {item.reportType}
+                            </span>
+                          </div>
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#121412]/90 border border-[#303831]">
+                              {item.recoveryStatus}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-5">
+                          <div className="flex justify-between text-xs text-[#9CA69F] font-mono mb-1">
+                            <span>{item.category}</span>
+                            <span>{item.id}</span>
+                          </div>
+                          <h3 className="text-lg font-bold text-[#F3F3EC]">{item.title}</h3>
+                          <p className="text-sm text-[#9CA69F] mt-1 line-clamp-2">{item.description}</p>
+                          <div className="mt-4 pt-3 border-t border-[#303831] flex justify-between text-xs text-[#9CA69F]">
+                            <span>{item.location}</span>
+                            <span>{item.date}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="px-5 pb-5">
+                        <button onClick={() => setActiveItemModal(item)} className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-[#121412] hover:bg-[#222823] text-[#F3F3EC] border border-[#303831]">
+                          View Details
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {activeView === 'matches' && (
+              <section className="py-12 max-w-7xl mx-auto px-4 space-y-6">
+                <h1 className="text-3xl font-bold">Possible Matches ({matchSuggestions.length})</h1>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {matchSuggestions.map((pair) => (
+                    <div key={pair.id} className="rounded-2xl bg-[#1B201C] border border-[#303831] p-5 space-y-4">
+                      <div className="flex justify-between items-center border-b border-[#303831] pb-3">
+                        <span className="text-xs font-mono text-[#2E8B57]">{pair.cnnCategoryLabel}</span>
+                        {pair.similarityScore && <span className="text-xs font-mono px-2.5 py-1 rounded bg-[#174D35]/40 border border-[#2E8B57]">Visual similarity: {pair.similarityScore}%</span>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 rounded-xl bg-[#121412] border border-[#C6283D]/40">
+                          <img src={pair.lostReport.imageUrl} className="h-32 w-full object-cover rounded-lg mb-2" />
+                          <p className="text-sm font-bold">LOST: {pair.lostReport.title}</p>
+                          <p className="text-xs text-[#9CA69F]">{pair.lostReport.location}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-[#121412] border border-[#2E8B57]/40">
+                          <img src={pair.foundReport.imageUrl} className="h-32 w-full object-cover rounded-lg mb-2" />
+                          <p className="text-sm font-bold">FOUND: {pair.foundReport.title}</p>
+                          <p className="text-xs text-[#9CA69F]">{pair.foundReport.location}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {activeView === 'how-it-works' && (
+              <section className="py-12 max-w-5xl mx-auto px-4 space-y-6">
+                <h1 className="text-3xl font-bold">How Smart Campus Lost &amp; Found Works</h1>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-3">
+                    <h2 className="text-xl font-bold text-[#2E8B57]">Direction A • Computer Vision Pipeline</h2>
+                    <p className="text-sm text-[#9CA69F]">1. OpenCV Image Preprocessing (CLAHE & noise reduction)</p>
+                    <p className="text-sm text-[#9CA69F]">2. CNN Object Classification</p>
+                    <p className="text-sm text-[#9CA69F]">3. MobileNetV2 Feature Extraction & Cosine Similarity</p>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-3">
+                    <h2 className="text-xl font-bold text-[#C6283D]">Direction B • Supervised ML Evaluation</h2>
+                    <p className="text-sm text-[#9CA69F]">Evaluates Logistic Regression, Decision Tree, Random Forest, and Gradient Boosting as advisory estimates.</p>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {(activeView === 'report-lost' || activeView === 'report-found') && (
+              <section className="py-12 max-w-2xl mx-auto px-4">
+                <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-4">
+                  <h2 className="text-2xl font-bold">Report {activeView === 'report-lost' ? 'Lost' : 'Found'} Belonging</h2>
+                  <p className="text-sm text-[#9CA69F]">Return to Home to browse active listings or test the Operator Sign In.</p>
+                  <button onClick={() => setActiveView('home')} className="px-4 py-2 rounded-xl bg-[#174D35] text-xs font-semibold">Back to Home</button>
+                </div>
+              </section>
+            )}
+
+            {activeView === 'operator-login' && (
+              <section className="py-16 max-w-md mx-auto px-4">
+                <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-4">
+                  <h2 className="text-xl font-bold">Operator Sign In</h2>
+                  <button
+                    onClick={() => {
+                      setIsOperatorAuthenticated(true);
+                      setOperatorUser({ name: 'Operator Sharma', role: 'Security', badgeId: 'OP-2026-04' });
+                      setActiveView('operator-dashboard');
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-[#174D35] hover:bg-[#2E8B57] text-xs font-semibold"
+                  >
+                    Instant Demo Sign In (OP-2026-04)
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeView === 'operator-dashboard' && (
+              <section className="py-12 max-w-7xl mx-auto px-4 space-y-6">
+                <div className="flex justify-between items-center">
+                  <h1 className="text-2xl font-bold">Operator Console ({operatorUser?.badgeId})</h1>
+                  <button onClick={() => { setIsOperatorAuthenticated(false); setActiveView('home'); }} className="px-3 py-1.5 rounded-lg bg-[#801F30] text-xs">Sign Out</button>
+                </div>
+                <div className="rounded-2xl bg-[#1B201C] border border-[#303831] overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#121412] text-[#9CA69F] uppercase">
+                      <tr><th className="p-3.5">ID</th><th className="p-3.5">Title</th><th className="p-3.5">Type</th><th className="p-3.5">Status</th><th className="p-3.5">ML Prediction</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#303831]">
+                      {reports.map((r) => (
+                        <tr key={r.id}>
+                          <td className="p-3.5 font-mono">{r.id}</td>
+                          <td className="p-3.5 font-bold">{r.title}</td>
+                          <td className="p-3.5">{r.reportType}</td>
+                          <td className="p-3.5">{r.recoveryStatus}</td>
+                          <td className="p-3.5 font-mono text-[#2E8B57]">{r.mlEvaluation?.predictedStatus} ({r.mlEvaluation?.algorithm})</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </main>
+
+          {activeItemModal && (
+            <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+              <div className="bg-[#1B201C] border border-[#303831] rounded-2xl max-w-2xl w-full p-6 space-y-4">
+                <div className="flex justify-between items-center border-b border-[#303831] pb-3">
+                  <span className="font-mono text-xs text-[#9CA69F]">{activeItemModal.id}</span>
+                  <button onClick={() => setActiveItemModal(null)}><X className="w-5 h-5" /></button>
+                </div>
+                <img src={activeItemModal.imageUrl} className="w-full h-60 object-cover rounded-xl" />
+                <h2 className="text-2xl font-bold">{activeItemModal.title}</h2>
+                <p className="text-sm text-[#9CA69F]">{activeItemModal.description}</p>
+                <p className="text-xs text-[#F3F3EC]"><strong>Features:</strong> {activeItemModal.distinguishingFeatures}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

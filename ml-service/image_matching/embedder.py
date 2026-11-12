@@ -3,11 +3,12 @@ Feature Embedding Extractor
 ---------------------------
 Extracts high-dimensional visual feature vectors using pre-trained
 MobileNetV2 (1280-d) or ResNet50 (2048-d) backbones.
-Supports Torchvision and fallback inference.
+Supports Torchvision with L2 unit normalization.
 """
 
+import io
 import numpy as np
-from typing import Literal
+from typing import Literal, Union
 from image_matching.preprocessor import load_and_preprocess_image
 
 
@@ -23,6 +24,7 @@ class ImageEmbeddingExtractor:
         self.model_name = model_name
         self.device = device
         self.model = None
+        self.embedding_dim = 1280
         self._load_model()
 
     def _load_model(self):
@@ -50,15 +52,16 @@ class ImageEmbeddingExtractor:
             print(f"[OK] Loaded pre-trained {self.model_name} (Dim: {self.embedding_dim}) on {self.device}.")
 
         except ImportError:
-            print("[WARN] PyTorch/Torchvision not installed yet. Please run `pip install torch torchvision`.")
+            print("[WARN] PyTorch/Torchvision not installed yet. Please ensure torch and torchvision are installed.")
             self.model = None
 
-    def extract_from_path(self, image_path: str) -> np.ndarray:
+    def extract(self, image_source: Union[str, bytes, io.BytesIO]) -> np.ndarray:
         """
-        Runs OpenCV preprocessing and extracts normalized feature embedding vector.
+        Preprocesses image and extracts L2-normalized feature embedding vector.
+        Accepts file path, raw bytes, or BytesIO.
         """
-        # 1. Preprocess with OpenCV
-        img_np = load_and_preprocess_image(image_path, target_size=(224, 224))
+        # 1. Preprocess with OpenCV / PIL
+        img_np = load_and_preprocess_image(image_source, target_size=(224, 224))
 
         if self.model is None:
             raise RuntimeError("PyTorch model is not initialized. Please ensure torch and torchvision are installed.")
@@ -85,3 +88,11 @@ class ImageEmbeddingExtractor:
             feat = feat / norm
 
         return feat
+
+    def extract_from_path(self, image_path: str) -> np.ndarray:
+        """Alias for extract(image_path)."""
+        return self.extract(image_path)
+
+    def extract_from_bytes(self, image_bytes: bytes) -> np.ndarray:
+        """Alias for extract(image_bytes)."""
+        return self.extract(image_bytes)

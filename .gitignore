@@ -65,3 +65,7 @@ Thumbs.db
 data/images/*
 !data/images/README.md
 
+# Log files
+*.log
+ml-service/*.log
+

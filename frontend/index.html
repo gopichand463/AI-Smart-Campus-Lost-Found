@@ -4,9 +4,32 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>Smart Campus Lost &amp; Found</title>
+    <!-- Tailwind CSS CDN matching reference UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              campus: {
+                bg: '#121412',
+                card: '#1B201C',
+                border: '#303831',
+                forest: '#2E8B57',
+                forestDark: '#174D35',
+                crimson: '#C6283D',
+                crimsonDark: '#801F30',
+                text: '#F3F3EC',
+                muted: '#9CA69F'
+              }
+            }
+          }
+        }
+      }
+    </script>
   </head>
-  <body>
+  <body class="bg-[#121412] text-[#F3F3EC] antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

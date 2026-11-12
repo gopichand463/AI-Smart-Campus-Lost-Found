@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS lost_found_records (
     description TEXT,
     location VARCHAR(255) NOT NULL,
     item_date DATE NOT NULL,
+    image_url VARCHAR(500) NULL,
+    image_embedding_id VARCHAR(64) NULL,
     recovery_status ENUM('Pending', 'Recovered', 'Closed') NOT NULL DEFAULT 'Pending',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

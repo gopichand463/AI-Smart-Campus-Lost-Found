@@ -1,1207 +1,1194 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search, MapPin, Calendar, Tag, ShieldCheck, AlertCircle, CheckCircle2,
   Clock, SlidersHorizontal, ArrowRight, Upload, X, Eye, EyeOff, Layers,
   LayoutDashboard, FileText, GitCompare, BarChart3, LogOut, ChevronRight,
-  ChevronLeft, Info, Check, Sparkles, Lock, RefreshCw, FolderSearch, Camera
+  ChevronLeft, Info, Check, Sparkles, Lock, RefreshCw, FolderSearch, Camera,
+  HelpCircle, Phone, ArrowUpRight
 } from 'lucide-react';
+import DataVisualsView from './components/DataVisualsView';
 
-const INITIAL_DEMO_REPORTS = [
+// ============================================================================
+// BESPOKE FLAT VECTOR ILLUSTRATIONS (Pixel-perfect matching of user screenshots)
+// ============================================================================
+
+// 1. Backpack Illustration (Sage Green on #D5E8DB)
+export function BackpackVector({ className = "w-full h-full" }) {
+  return (
+    <svg viewBox="0 0 100 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Top Handle Loop */}
+      <path d="M40 26 C40 14, 60 14, 60 26" stroke="#386A51" strokeWidth="6" strokeLinecap="round" fill="none" />
+      {/* Main Backpack Body */}
+      <rect x="22" y="24" width="56" height="82" rx="22" fill="#4B7761" />
+      {/* Upper Compartment Shade */}
+      <path d="M22 46 C22 34 32 24 44 24 H56 C68 24 78 34 78 46 V50 H22 V46 Z" fill="#58856F" />
+      {/* Horizontal Divider Zipper */}
+      <line x1="28" y1="58" x2="72" y2="58" stroke="#2D4C3C" strokeWidth="3" strokeLinecap="round" />
+      {/* Front Lower Pocket */}
+      <rect x="28" y="66" width="44" height="34" rx="8" fill="#3D6551" />
+      {/* Front pocket zipper pull */}
+      <line x1="36" y1="72" x2="64" y2="72" stroke="#254334" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// 2. Smartphone Illustration (Peach on #FCE3D2 or Black on #FCE3D2)
+export function PhoneVector({ variant = "black", className = "w-full h-full" }) {
+  const isPeach = variant === "peach";
+  const bodyColor = isPeach ? "#D87A5B" : "#2F3230";
+  const screenColor = isPeach ? "#FAD8C7" : "#565B58";
+  const accentColor = isPeach ? "#B55A3E" : "#1A1C1B";
+
+  return (
+    <svg viewBox="0 0 100 140" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Phone outer body */}
+      <rect x="24" y="10" width="52" height="120" rx="14" fill={bodyColor} />
+      {/* Phone screen display */}
+      <rect x="29" y="24" width="42" height="92" rx="6" fill={screenColor} />
+      {/* Top speaker / earpiece slot */}
+      <rect x="42" y="16" width="16" height="3" rx="1.5" fill={accentColor} />
+      {/* Bottom home button or dot indicator */}
+      <circle cx="50" cy="124" r="3.2" fill={accentColor} />
+    </svg>
+  );
+}
+
+// 3. Maroon Notebook Illustration (Deep Maroon on #FAD4D8)
+export function NotebookVector({ className = "w-full h-full" }) {
+  return (
+    <svg viewBox="0 0 100 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Main Notebook Cover */}
+      <rect x="24" y="16" width="52" height="88" rx="7" fill="#7E1D2A" />
+      {/* Left spine binding */}
+      <path d="M24 23 C24 19 27 16 31 16 H36 V104 H31 C27 104 24 101 24 97 Z" fill="#5A121D" />
+      {/* Bookmark ribbon or cover deboss line */}
+      <rect x="44" y="16" width="6" height="28" fill="#C93B4E" rx="1" />
+      {/* Debossed cover lines */}
+      <line x1="42" y1="56" x2="68" y2="56" stroke="#9E2B3A" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="42" y1="64" x2="62" y2="64" stroke="#9E2B3A" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// 4. Wireless Earbuds Case Illustration (Charcoal Pebble on #E5E8DF)
+export function EarbudsCaseVector({ className = "w-full h-full" }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Capsule shape case */}
+      <rect x="18" y="32" width="64" height="40" rx="18" fill="#444945" />
+      {/* Lid split line */}
+      <line x1="18" y1="48" x2="82" y2="48" stroke="#2B2F2C" strokeWidth="2" />
+      {/* Center status LED */}
+      <circle cx="50" cy="56" r="2.2" fill="#8E968F" />
+    </svg>
+  );
+}
+
+// 5. Student ID Card Illustration (Sage / Mint on #D8ECE0)
+export function IdCardVector({ className = "w-full h-full" }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Horizontal ID Card */}
+      <rect x="16" y="28" width="68" height="46" rx="6" fill="#668E7A" />
+      {/* Top lanyard hole */}
+      <rect x="46" y="24" width="8" height="3" rx="1.5" fill="#3D5A4C" />
+      {/* Avatar Circle */}
+      <circle cx="34" cy="51" r="10" fill="#395647" />
+      <circle cx="34" cy="48" r="4" fill="#668E7A" />
+      <path d="M28 58 C28 54 31 52 34 52 C37 52 40 54 40 58" fill="#668E7A" />
+      {/* Text Lines */}
+      <rect x="50" y="43" width="24" height="3.5" rx="1.75" fill="#395647" />
+      <rect x="50" y="50" width="18" height="3.5" rx="1.75" fill="#395647" />
+      <rect x="50" y="57" width="12" height="3.5" rx="1.75" fill="#395647" />
+    </svg>
+  );
+}
+
+// 6. Insulated Water Bottle Illustration (Sage / Slate on #E1EFE6)
+export function BottleVector({ className = "w-full h-full" }) {
+  return (
+    <svg viewBox="0 0 100 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Loop Handle / Cap */}
+      <rect x="42" y="16" width="16" height="8" rx="2" fill="#2C3A33" />
+      <path d="M44 24 C44 20, 56 20, 56 24" stroke="#2C3A33" strokeWidth="3" fill="none" />
+      {/* Bottle Neck */}
+      <rect x="44" y="24" width="12" height="8" fill="#4B6358" />
+      {/* Bottle Body */}
+      <rect x="34" y="32" width="32" height="76" rx="8" fill="#587568" />
+      {/* Grip band */}
+      <rect x="34" y="52" width="32" height="18" fill="#455F53" />
+    </svg>
+  );
+}
+
+// ============================================================================
+// INITIAL REPOSITORY DATA (Exact Match with Image 2 Items)
+// ============================================================================
+const INITIAL_ITEMS = [
   {
-    id: 'CMP-2026-841',
-    title: 'Black Backpack',
-    reportType: 'Lost',
-    recoveryStatus: 'Pending',
-    category: 'Bags',
-    brand: 'Aer',
-    color: 'Matte Black',
-    distinguishingFeatures: 'Padded 15-inch laptop compartment and a small braided paracord keychain on the right zipper.',
-    description: 'Black backpack with a laptop compartment and a small keychain. Left near the quiet study carrels on the third floor.',
-    location: 'Central Library',
-    specificArea: '3rd Floor Quiet Study Wing',
-    date: '2026-10-21',
-    approximateTime: '16:30',
-    imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Matte black nylon backpack resting upright with visible front zipper compartment',
-    isDemoData: true,
-    timeline: [
-      { id: 't1', label: 'Report Submitted', date: 'Oct 21, 2026 • 17:05', actor: 'Student Reporter' },
-      { id: 't2', label: 'OpenCV Preprocessing & Feature Indexing Complete', date: 'Oct 21, 2026 • 17:06', actor: 'Visual Pipeline' }
-    ],
-    mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Recovered' }
-  },
-  {
-    id: 'CMP-2026-842',
-    title: 'Stainless-Steel Bottle',
+    id: 'LF-0412',
+    title: 'Green backpack',
     reportType: 'Found',
     recoveryStatus: 'Pending',
-    category: 'Water Bottles',
-    brand: 'Hydro Flask',
+    category: 'Bags',
+    brand: 'Aer / Daypack',
+    color: 'Sage Green',
+    location: 'Library, Block 3',
+    specificArea: '3rd Floor Study Wing Desk #12',
+    dateText: 'Today',
+    date: '2026-11-20',
+    description: 'Padded laptop sleeve with braided cord keychain on front zipper.',
+    distinguishingFeatures: 'Slight scuff on lower left pocket; 15-inch laptop sleeve.',
+    confidence: 84,
+    thumbBg: '#D5E8DB',
+    iconType: 'backpack',
+  },
+  {
+    id: 'LF-0411',
+    title: 'Black smartphone',
+    reportType: 'Lost',
+    recoveryStatus: 'Pending',
+    category: 'Electronics',
+    brand: 'Apple iPhone',
+    color: 'Matte Black',
+    location: 'Cafeteria',
+    specificArea: 'West Patio Dining Area',
+    dateText: 'Yesterday',
+    date: '2026-11-19',
+    description: 'Black phone inside transparent silicone case with slight scratch on top corner.',
+    distinguishingFeatures: 'Lock screen shows campus botanical garden wallpaper.',
+    confidence: 72,
+    thumbBg: '#FCE3D2',
+    iconType: 'phone-black',
+  },
+  {
+    id: 'LF-0409',
+    title: 'Maroon notebook',
+    reportType: 'Found',
+    recoveryStatus: 'Pending',
+    category: 'Cards and IDs',
+    brand: 'Classmate Hardbound',
+    color: 'Deep Maroon',
+    location: 'Lecture hall 2',
+    specificArea: 'Row 4 Center Seat',
+    dateText: 'Today',
+    date: '2026-11-20',
+    description: 'Hardcover spiral notebook containing engineering mechanics lecture notes.',
+    distinguishingFeatures: 'Initials "R.S." written with gold marker on the inside flyleaf.',
+    confidence: 65,
+    thumbBg: '#FAD4D8',
+    iconType: 'notebook',
+  },
+  {
+    id: 'LF-0406',
+    title: 'Wireless earbuds case',
+    reportType: 'Lost',
+    recoveryStatus: 'Pending',
+    category: 'Electronics',
+    brand: 'boAt / Airdopes',
+    color: 'Charcoal Grey',
+    location: 'Main gate',
+    specificArea: 'Turnstile Exit Gate 1',
+    dateText: '2 days ago',
+    date: '2026-11-18',
+    description: 'Matte charging case with type-C cable, no earbuds inside.',
+    distinguishingFeatures: 'Small reflective silver sticker on bottom charging port.',
+    confidence: 58,
+    thumbBg: '#E5E8DF',
+    iconType: 'earbuds',
+  },
+  {
+    id: 'LF-0403',
+    title: 'Student ID card',
+    reportType: 'Found',
+    recoveryStatus: 'Pending',
+    category: 'Cards and IDs',
+    brand: 'GLA University ID',
+    color: 'White & Green',
+    location: 'Sports complex',
+    specificArea: 'Badminton Court Bleachers',
+    dateText: '3 days ago',
+    date: '2026-11-17',
+    description: 'B.Tech CSE student identity card in green branded neck lanyard.',
+    distinguishingFeatures: 'Roll number begins with 221500; contains library barcode.',
+    confidence: 91,
+    thumbBg: '#D8ECE0',
+    iconType: 'idcard',
+  },
+  {
+    id: 'LF-0398',
+    title: 'Stainless steel water bottle',
+    reportType: 'Lost',
+    recoveryStatus: 'Pending',
+    category: 'Bottles',
+    brand: 'Hydro Flask / Milton',
     color: 'Brushed Silver',
-    distinguishingFeatures: 'Slight dent near bottom rim, black wide-mouth flex cap, no stickers.',
-    description: 'Silver insulated bottle discovered near a classroom lecture podium after the afternoon thermodynamics seminar.',
-    location: 'Engineering Block',
-    specificArea: 'Lecture Hall EN-204',
-    date: '2026-10-22',
-    approximateTime: '14:15',
-    imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Brushed stainless steel insulated water bottle with a matte black screw cap',
-    isDemoData: true,
-    timeline: [
-      { id: 't3', label: 'Found Item Logged', date: 'Oct 22, 2026 • 14:30', actor: 'Campus Finder' },
-      { id: 't4', label: 'Stored at Engineering Front Desk', date: 'Oct 22, 2026 • 15:00', actor: 'Operator #04' }
-    ],
-    mlEvaluation: { algorithm: 'Gradient Boosting', predictedStatus: 'Pending' }
-  },
-  {
-    id: 'CMP-2026-845',
-    title: 'Wireless Headphones',
-    reportType: 'Lost',
-    recoveryStatus: 'Pending',
-    category: 'Electronics',
-    brand: 'Sony',
-    color: 'Charcoal Black',
-    distinguishingFeatures: 'Minor scuff on the left earcup swivel hinge; stored inside a compact hard-shell travel case.',
-    description: 'Dark wireless headphones in a compact charging case. Misplaced at the west patio tables during lunch hour.',
-    location: 'Student Cafeteria',
-    specificArea: 'West Espresso Seating Area',
-    date: '2026-10-23',
-    approximateTime: '12:45',
-    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Over-ear matte black wireless headphones angled on a dark surface',
-    isDemoData: true,
-    timeline: [
-      { id: 't5', label: 'Report Submitted', date: 'Oct 23, 2026 • 13:20', actor: 'Student Reporter' }
-    ],
-    mlEvaluation: { algorithm: 'Logistic Regression', predictedStatus: 'Pending' }
-  },
-  {
-    id: 'CMP-2026-849',
-    title: 'Scientific Calculator',
-    reportType: 'Found',
-    recoveryStatus: 'Pending',
-    category: 'Electronics',
-    brand: 'Casio fx-991EX',
-    color: 'Dark Slate / White Keys',
-    distinguishingFeatures: 'Slide-on hard cover included; initials "R.K." lightly etched on the back plastic casing.',
-    description: 'Calculator discovered after a classroom session on linear algebra in Mathematics Block.',
-    location: 'Mathematics Block',
-    specificArea: 'Seminar Room MB-108',
-    date: '2026-10-24',
-    approximateTime: '11:00',
-    imageUrl: 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Scientific calculator with LCD display and function keys',
-    isDemoData: true,
-    timeline: [
-      { id: 't6', label: 'Report Submitted', date: 'Oct 24, 2026 • 11:15', actor: 'Faculty Member' },
-      { id: 't7', label: 'Potential Match Flagged for Review', date: 'Oct 24, 2026 • 11:40', actor: 'Feature Matcher' }
-    ],
-    mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Recovered' }
-  },
-  {
-    id: 'CMP-2026-852',
-    title: 'Dark Cordura Daypack',
-    reportType: 'Found',
-    recoveryStatus: 'Pending',
-    category: 'Bags',
-    brand: 'Aer / Unbranded',
-    color: 'Black',
-    distinguishingFeatures: 'Contains a 15-inch laptop sleeve and a small cord zipper pull on the side pocket.',
-    description: 'Found resting beside the return book drop near the 3rd floor elevators.',
-    location: 'Central Library',
-    specificArea: '3rd Floor Elevator Lobby',
-    date: '2026-10-22',
-    approximateTime: '09:10',
-    imageUrl: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Dark structured Cordura backpack photographed in studio light',
-    isDemoData: true,
-    timeline: [
-      { id: 't8', label: 'Report Submitted', date: 'Oct 22, 2026 • 09:20', actor: 'Library Staff' },
-      { id: 't9', label: 'Candidate Match Linked (CMP-2026-841)', date: 'Oct 22, 2026 • 09:22', actor: 'MobileNet Feature Index' }
-    ],
-    mlEvaluation: { algorithm: 'Gradient Boosting', predictedStatus: 'Recovered' }
-  },
-  {
-    id: 'CMP-2026-830',
-    title: 'Keyring with Brass Fob',
-    reportType: 'Found',
-    recoveryStatus: 'Recovered',
-    category: 'Keys',
-    brand: 'Assa Abloy / Dorm Key',
-    color: 'Brass & Matte Black Leather',
-    distinguishingFeatures: 'Three silver cylinder keys attached to a dark vegetable-tanned leather loop.',
-    description: 'Turned in at the Athletics Complex turnstile after evening intramural practice.',
-    location: 'Sports Complex',
-    specificArea: 'Main Entrance Turnstile',
-    date: '2026-10-19',
-    approximateTime: '19:45',
-    imageUrl: 'https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Set of metallic keys on a dark keyring',
-    isDemoData: true,
-    timeline: [
-      { id: 't10', label: 'Report Submitted', date: 'Oct 19, 2026 • 20:00', actor: 'Campus Security' },
-      { id: 't11', label: 'Claimant Verified via Key Code & ID', date: 'Oct 20, 2026 • 10:15', actor: 'Operator #02' },
-      { id: 't12', label: 'Status Updated to Recovered', date: 'Oct 20, 2026 • 10:18', actor: 'Operator #02' }
-    ],
-    mlEvaluation: { algorithm: 'Decision Tree', predictedStatus: 'Recovered' }
-  },
-  {
-    id: 'CMP-2026-855',
-    title: 'Fast USB-C 65W Charger',
-    reportType: 'Found',
-    recoveryStatus: 'Pending',
-    category: 'Electronics',
-    brand: 'Apple / Anker',
-    color: 'White',
-    distinguishingFeatures: 'Foldable two-pin plug with braided white type-C cable wound around the adapter.',
-    description: 'Discovered plugged into the back power strip of classroom AB-1 202.',
-    location: 'Engineering Block',
-    specificArea: 'Classroom AB-1 202',
-    date: '2026-10-25',
-    approximateTime: '17:10',
-    imageUrl: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'White electronic wall adapter with type-C cable',
-    isDemoData: true,
-    timeline: [
-      { id: 't13', label: 'Found Item Registered', date: 'Oct 25, 2026 • 17:30', actor: 'Lab Assistant' }
-    ],
-    mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Recovered' }
-  },
-  {
-    id: 'CMP-2026-858',
-    title: 'Compact Windproof Umbrella',
-    reportType: 'Found',
-    recoveryStatus: 'Pending',
-    category: 'Accessories',
-    brand: 'Repel / Black Automatic',
-    color: 'Matte Black',
-    distinguishingFeatures: 'Rubberized grip handle with push button open/close, silver metal rib tips.',
-    description: 'Left on the umbrella rack outside the central cafeteria during the thunderstorm.',
-    location: 'Student Cafeteria',
-    specificArea: 'East Entrance Umbrella Stand',
-    date: '2026-10-24',
-    approximateTime: '13:30',
-    imageUrl: 'https://images.unsplash.com/photo-1514894780887-121968d00567?auto=format&fit=crop&w=900&q=80',
-    imageAlt: 'Black compact folding umbrella with automatic grip',
-    isDemoData: true,
-    timeline: [
-      { id: 't14', label: 'Found Item Logged', date: 'Oct 24, 2026 • 14:00', actor: 'Cafeteria Staff' }
-    ],
-    mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Pending' }
+    location: 'Library, Block 3',
+    specificArea: 'Ground Floor Water Cooler',
+    dateText: '4 days ago',
+    date: '2026-11-16',
+    description: '750ml vacuum insulated steel flask with black screw lid and handle loop.',
+    distinguishingFeatures: 'Minor dent on base rim; plain silver without stickers.',
+    confidence: 76,
+    thumbBg: '#E1EFE6',
+    iconType: 'bottle',
   }
 ];
 
-const CAMPUS_LOCATIONS = [
-  'All Locations',
-  'Central Library',
-  'Engineering Block',
-  'Student Cafeteria',
-  'Mathematics Block',
-  'Sports Complex',
-  'Science & Research Center',
-  'Administration Hall',
-  'Hostel Block'
-];
-
-const CATEGORIES = [
-  'All Items',
-  'Bags',
-  'Electronics',
-  'Water Bottles',
-  'ID Cards',
-  'Keys',
-  'Books & Stationery',
-  'Accessories',
-  'Other'
-];
-
 function App() {
-  const [activeView, setActiveView] = useState('home');
-  const [operatorTab, setOperatorTab] = useState('overview');
-  const [isOperatorAuthenticated, setIsOperatorAuthenticated] = useState(false);
-  const [operatorUser, setOperatorUser] = useState(null);
-  const [dataSourceMode, setDataSourceMode] = useState('demo');
-  const [backendHealth, setBackendHealth] = useState(null);
+  // Navigation: 'home' | 'browse' | 'report' | 'claims'
+  const [activeTab, setActiveTab] = useState('home');
 
-  // Persistent Reports
-  const [reports, setReports] = useState(() => {
-    const saved = localStorage.getItem('smart_campus_reports');
+  // Master Items State (persisted cleanly in localStorage without stock photos)
+  const [items, setItems] = useState(() => {
+    const saved = localStorage.getItem('findly_items_v3');
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        return INITIAL_DEMO_REPORTS;
+        return INITIAL_ITEMS;
       }
     }
-    return INITIAL_DEMO_REPORTS;
+    return INITIAL_ITEMS;
   });
 
-  // Filter States
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Items');
-  const [selectedReportType, setSelectedReportType] = useState('All');
-  const [selectedRecoveryStatus, setSelectedRecoveryStatus] = useState('All');
-  const [selectedLocation, setSelectedLocation] = useState('All Locations');
-
-  // Modals & Feedback
-  const [activeItemModal, setActiveItemModal] = useState(null);
-  const [activeClaimModal, setActiveClaimModal] = useState(null);
-  const [statusConfirmTarget, setStatusConfirmTarget] = useState(null);
-  const [toast, setToast] = useState(null);
-
-  // Lost/Found Form States
-  const [lostForm, setLostForm] = useState({
-    title: '',
-    category: 'Electronics',
-    brand: '',
-    color: '',
-    location: 'Central Library',
-    specificArea: '',
-    date: new Date().toISOString().split('T')[0],
-    approximateTime: '12:00',
-    distinguishingFeatures: '',
-    description: '',
+  // Browse Items Filter States (Image 2)
+  const [browseSearch, setBrowseSearch] = useState('');
+  const [typeFilters, setTypeFilters] = useState({ Lost: false, Found: false });
+  const [categoryFilters, setCategoryFilters] = useState({
+    Bags: false,
+    'Cards and IDs': false,
+    Electronics: false,
+    Bottles: false,
   });
-  const [lostImageFile, setLostImageFile] = useState(null);
-  const [lostImagePreview, setLostImagePreview] = useState(null);
-  const [isSubmittingLost, setIsSubmittingLost] = useState(false);
+  const [timeFilter, setTimeFilter] = useState('Any time');
+  const [sortBy, setSortBy] = useState('Newest first');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [foundForm, setFoundForm] = useState({
-    title: '',
-    category: 'Water Bottles',
-    brand: '',
-    color: '',
-    location: 'Engineering Block',
-    specificArea: '',
-    date: new Date().toISOString().split('T')[0],
-    approximateTime: '14:00',
-    distinguishingFeatures: '',
-    description: '',
-    custodyType: 'Turned in at Central Proctor Desk (AB-1, Rm 104)'
+  // Active Modals
+  const [selectedItemModal, setSelectedItemModal] = useState(null);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('findly_user');
+    return saved ? JSON.parse(saved) : null;
   });
-  const [foundImageFile, setFoundImageFile] = useState(null);
-  const [foundImagePreview, setFoundImagePreview] = useState(null);
-  const [isSubmittingFound, setIsSubmittingFound] = useState(false);
 
-  // Claim Form State
-  const [claimRollNo, setClaimRollNo] = useState('');
-  const [claimNotes, setClaimNotes] = useState('');
+  // Report Form State (Matching Image 3)
+  const [reportType, setReportType] = useState('Lost'); // 'Lost' | 'Found'
+  const [reportForm, setReportForm] = useState({
+    itemName: 'Black backpack',
+    category: 'Bags',
+    color: 'Black',
+    brand: 'Unknown',
+    location: 'Library, Block 3',
+    date: '2026-11-20',
+    description: 'Marks, stickers, contents',
+  });
+  const [uploadedPhoto, setUploadedPhoto] = useState(null);
+  const [uploadedPhotoPreview, setUploadedPhotoPreview] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
 
-  // Save reports on changes
+  // Synchronize localStorage
   useEffect(() => {
-    localStorage.setItem('smart_campus_reports', JSON.stringify(reports));
-  }, [reports]);
+    localStorage.setItem('findly_items_v3', JSON.stringify(items));
+  }, [items]);
 
-  // Check Backend ML Service Health
-  useEffect(() => {
-    fetch('http://localhost:8000/api/health')
-      .then((res) => res.json())
-      .then((data) => setBackendHealth(data))
-      .catch(() => setBackendHealth(null));
-  }, []);
-
-  const triggerToast = (message, tone = 'green') => {
-    setToast({ message, tone });
-    setTimeout(() => setToast(null), 4200);
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3800);
   };
 
-  const filteredReports = useMemo(() => {
-    return reports.filter((item) => {
-      const matchesSearch =
-        searchQuery.trim() === '' ||
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.id.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'All Items' || item.category.toLowerCase() === selectedCategory.toLowerCase();
-      const matchesType = selectedReportType === 'All' || item.reportType === selectedReportType;
-      const matchesStatus = selectedRecoveryStatus === 'All' || item.recoveryStatus === selectedRecoveryStatus;
-      const matchesLocation = selectedLocation === 'All Locations' || item.location === selectedLocation;
-      return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesLocation;
-    });
-  }, [reports, searchQuery, selectedCategory, selectedReportType, selectedRecoveryStatus, selectedLocation]);
+  // Helper to render vector illustration by iconType
+  const renderVector = (iconType) => {
+    switch (iconType) {
+      case 'backpack':
+        return <BackpackVector />;
+      case 'phone':
+      case 'phone-peach':
+        return <PhoneVector variant="peach" />;
+      case 'phone-black':
+        return <PhoneVector variant="black" />;
+      case 'notebook':
+        return <NotebookVector />;
+      case 'earbuds':
+        return <EarbudsCaseVector />;
+      case 'idcard':
+        return <IdCardVector />;
+      case 'bottle':
+        return <BottleVector />;
+      default:
+        return <BackpackVector />;
+    }
+  };
 
-  // Multimodal Match Suggestions (Lost vs Found)
-  const matchSuggestions = useMemo(() => {
-    const lostPool = reports.filter((r) => r.reportType === 'Lost' && r.recoveryStatus === 'Pending');
-    const foundPool = reports.filter((r) => r.reportType === 'Found' && r.recoveryStatus === 'Pending');
-    const pairs = [];
+  // Filtered Items for Browse Screen
+  const filteredBrowseItems = useMemo(() => {
+    return items.filter((item) => {
+      // Search keyword
+      const query = browseSearch.toLowerCase().trim();
+      if (query) {
+        const matchesQuery =
+          item.title.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          item.location.toLowerCase().includes(query) ||
+          item.id.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query);
+        if (!matchesQuery) return false;
+      }
 
-    lostPool.forEach((lost) => {
-      foundPool.forEach((found) => {
-        if (lost.category.toLowerCase() === found.category.toLowerCase()) {
-          const isBackpackDemo = lost.id === 'CMP-2026-841' && found.id === 'CMP-2026-852';
-          const isCalcMatch = lost.title.toLowerCase().includes('calc') && found.title.toLowerCase().includes('calc');
-          const isBottleMatch = lost.category.toLowerCase().includes('bottle') && found.category.toLowerCase().includes('bottle');
+      // Type filter (Lost / Found checkboxes)
+      const hasAnyType = typeFilters.Lost || typeFilters.Found;
+      if (hasAnyType) {
+        if (!typeFilters[item.reportType]) return false;
+      }
 
-          let score = 76;
-          if (isBackpackDemo) score = 88;
-          else if (isCalcMatch) score = 94;
-          else if (isBottleMatch) score = 84;
-          else if (lost.color && found.color && lost.color.toLowerCase() === found.color.toLowerCase()) score = 81;
-
-          pairs.push({
-            id: `MATCH-${lost.id}-${found.id}`,
-            lostReport: lost,
-            foundReport: found,
-            opencvStage: 'OpenCV Bilateral Filtering, CLAHE Contrast Normalization & 224x224 Center-Crop',
-            cnnCategoryLabel: `CNN Object Class: ${lost.category}`,
-            embeddingMethod: 'MobileNetV2 1,280-d Feature Vector (Cosine Similarity)',
-            similarityScore: score,
-            sharedCharacteristics: [
-              `Category: ${lost.category}`,
-              `Color: ${lost.color || 'Unspecified'} ↔ ${found.color || 'Unspecified'}`,
-              `Location Proximity: ${lost.location === found.location ? `Same Facility (${lost.location})` : `${lost.location} ↔ ${found.location}`}`,
-              'Cosine Dot-Product Match validated in < 4ms'
-            ]
-          });
+      // Category filter checkboxes
+      const activeCats = Object.keys(categoryFilters).filter((k) => categoryFilters[k]);
+      if (activeCats.length > 0) {
+        if (!activeCats.some((cat) => item.category.toLowerCase().includes(cat.toLowerCase()))) {
+          return false;
         }
-      });
+      }
+
+      return true;
     });
+  }, [items, browseSearch, typeFilters, categoryFilters, timeFilter, sortBy]);
 
-    return pairs;
-  }, [reports]);
+  // Paginated items (5 per page as shown in Image 2)
+  const pageSize = 5;
+  const totalPages = Math.ceil(filteredBrowseItems.length / pageSize) || 1;
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredBrowseItems.slice(start, start + pageSize);
+  }, [filteredBrowseItems, currentPage]);
 
-  // Handle Lost Report Submission (Clean decoupled submission + background AI scan)
-  const handleSubmitLost = async (e) => {
+  // Handle Form Submission (Image 3)
+  const handleReportSubmit = (e) => {
     e.preventDefault();
-    if (!lostForm.title) {
-      triggerToast('Please provide an item title.', 'crimson');
+    if (!reportForm.itemName.trim()) {
+      showToast('Please specify an item name.');
       return;
     }
 
-    setIsSubmittingLost(true);
-    const newId = `CMP-2026-${Math.floor(860 + Math.random() * 120)}`;
+    setIsSubmitting(true);
+    const newId = `LF-0${Math.floor(420 + Math.random() * 80)}`;
 
-    const newReport = {
+    // Determine illustration type based on category
+    let inferredIcon = 'backpack';
+    let inferredBg = '#D5E8DB';
+    const cat = reportForm.category.toLowerCase();
+    if (cat.includes('electronics') || cat.includes('phone')) {
+      inferredIcon = 'phone-black';
+      inferredBg = '#FCE3D2';
+    } else if (cat.includes('card') || cat.includes('id')) {
+      inferredIcon = 'idcard';
+      inferredBg = '#D8ECE0';
+    } else if (cat.includes('bottle')) {
+      inferredIcon = 'bottle';
+      inferredBg = '#E1EFE6';
+    } else if (cat.includes('note') || cat.includes('book')) {
+      inferredIcon = 'notebook';
+      inferredBg = '#FAD4D8';
+    }
+
+    const newItem = {
       id: newId,
-      title: lostForm.title,
-      reportType: 'Lost',
+      title: reportForm.itemName,
+      reportType: reportType,
       recoveryStatus: 'Pending',
-      category: lostForm.category,
-      brand: lostForm.brand || 'Unbranded',
-      color: lostForm.color || 'Dark',
-      distinguishingFeatures: lostForm.distinguishingFeatures || 'None specified.',
-      description: lostForm.description || `Reported lost at ${lostForm.location} on ${lostForm.date}.`,
-      location: lostForm.location,
-      specificArea: lostForm.specificArea || 'General campus grounds',
-      date: lostForm.date,
-      approximateTime: lostForm.approximateTime,
-      imageUrl: lostImagePreview || 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=900&q=80',
-      imageAlt: lostForm.title,
-      isDemoData: false,
-      timeline: [
-        { id: `t-${Date.now()}`, label: 'Report Submitted', date: `${new Date().toLocaleDateString()} • Just now`, actor: 'Student Reporter' },
-        { id: `t2-${Date.now()}`, label: 'MobileNetV2 Embedding Extracted & Indexed', date: `${new Date().toLocaleDateString()} • Just now`, actor: 'AI Visual Engine' }
-      ],
-      mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Pending' }
+      category: reportForm.category,
+      brand: reportForm.brand || 'Unknown',
+      color: reportForm.color || 'Unspecified',
+      location: reportForm.location,
+      specificArea: reportForm.location,
+      dateText: 'Today',
+      date: reportForm.date,
+      description: reportForm.description || 'Reported on campus.',
+      distinguishingFeatures: reportForm.description,
+      confidence: 72,
+      thumbBg: inferredBg,
+      iconType: inferredIcon,
+      userUploadedPhoto: uploadedPhotoPreview || null,
     };
 
-    // Background Match check against backend API if available
-    if (lostImageFile) {
+    // Asynchronous background AI matching call to backend if image is uploaded
+    if (uploadedPhoto) {
       try {
-        const data = new FormData();
-        data.append('file', lostImageFile);
-        fetch(`http://localhost:8000/api/match-image?top_k=3&category=${encodeURIComponent(lostForm.category)}`, {
+        const body = new FormData();
+        body.append('file', uploadedPhoto);
+        fetch(`http://localhost:8000/api/match-image?top_k=3&category=${encodeURIComponent(reportForm.category)}`, {
           method: 'POST',
-          body: data
+          body,
         }).catch(() => {});
       } catch (err) {}
     }
 
-    setReports((prev) => [newReport, ...prev]);
-    setIsSubmittingLost(false);
+    setItems((prev) => [newItem, ...prev]);
+    setIsSubmitting(false);
 
-    // Reset Form
-    setLostForm({
-      title: '',
-      category: 'Electronics',
-      brand: '',
-      color: '',
-      location: 'Central Library',
-      specificArea: '',
-      date: new Date().toISOString().split('T')[0],
-      approximateTime: '12:00',
-      distinguishingFeatures: '',
-      description: '',
-    });
-    setLostImageFile(null);
-    setLostImagePreview(null);
-
-    triggerToast(`Report ${newId} submitted. AI background matching activated.`, 'green');
-    setActiveView('home');
+    showToast(`Report ${newId} logged successfully. Status: Pending.`);
+    setActiveTab('browse');
   };
 
-  // Handle Found Report Submission
-  const handleSubmitFound = async (e) => {
-    e.preventDefault();
-    if (!foundForm.title) {
-      triggerToast('Please provide an item title.', 'crimson');
-      return;
-    }
-
-    setIsSubmittingFound(true);
-    const newId = `CMP-2026-${Math.floor(860 + Math.random() * 120)}`;
-
-    const newReport = {
-      id: newId,
-      title: foundForm.title,
-      reportType: 'Found',
-      recoveryStatus: 'Pending',
-      category: foundForm.category,
-      brand: foundForm.brand || 'Unbranded',
-      color: foundForm.color || 'Metallic',
-      distinguishingFeatures: foundForm.distinguishingFeatures || 'Standard issue.',
-      description: foundForm.description || `Discovered at ${foundForm.location}. Stored securely.`,
-      location: foundForm.location,
-      specificArea: foundForm.specificArea || 'General area',
-      date: foundForm.date,
-      approximateTime: foundForm.approximateTime,
-      imageUrl: foundImagePreview || 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?auto=format&fit=crop&w=900&q=80',
-      imageAlt: foundForm.title,
-      isDemoData: false,
-      timeline: [
-        { id: `t-${Date.now()}`, label: 'Found Item Logged & Registered', date: `${new Date().toLocaleDateString()} • Just now`, actor: 'Campus Citizen' },
-        { id: `t2-${Date.now()}`, label: `Custody: ${foundForm.custodyType}`, date: `${new Date().toLocaleDateString()} • Just now`, actor: 'Desk Protocol' }
-      ],
-      mlEvaluation: { algorithm: 'Random Forest', predictedStatus: 'Recovered' }
-    };
-
-    setReports((prev) => [newReport, ...prev]);
-    setIsSubmittingFound(false);
-
-    // Reset Form
-    setFoundForm({
-      title: '',
-      category: 'Water Bottles',
-      brand: '',
-      color: '',
-      location: 'Engineering Block',
-      specificArea: '',
-      date: new Date().toISOString().split('T')[0],
-      approximateTime: '14:00',
-      distinguishingFeatures: '',
-      description: '',
-      custodyType: 'Turned in at Central Proctor Desk (AB-1, Rm 104)'
-    });
-    setFoundImageFile(null);
-    setFoundImagePreview(null);
-
-    triggerToast(`Found property registered under ${newId}. Added to campus catalog.`, 'green');
-    setActiveView('home');
-  };
-
-  // Claim Submission
-  const handleLodgeClaim = (e) => {
-    e.preventDefault();
-    if (!claimRollNo) {
-      triggerToast('Please provide your University Roll No.', 'crimson');
-      return;
-    }
-
-    const token = `CLM-${Math.floor(100000 + Math.random() * 900000)}`;
-    triggerToast(`Claim ${token} logged. Present Student ID at Proctor Office (AB-1, Rm 104).`, 'green');
-
-    // Update status to Claim Pending
-    if (activeClaimModal) {
-      setReports((prev) =>
-        prev.map((r) => (r.id === activeClaimModal.id ? { ...r, recoveryStatus: 'Pending' } : r))
-      );
-    }
-
-    setActiveClaimModal(null);
-    setClaimRollNo('');
-    setClaimNotes('');
-  };
-
-  // Status Update from Operator Console
-  const handleConfirmStatusUpdate = () => {
-    if (!statusConfirmTarget) return;
-    const { report, nextStatus } = statusConfirmTarget;
-    setReports((prev) =>
-      prev.map((item) => {
-        if (item.id !== report.id) return item;
-        return {
-          ...item,
-          recoveryStatus: nextStatus,
-          timeline: [
-            ...item.timeline,
-            {
-              id: `tl-${Date.now()}`,
-              label: `Recovery Status Updated to ${nextStatus}`,
-              date: `${new Date().toLocaleDateString()} • Just now`,
-              actor: operatorUser ? `${operatorUser.name} (${operatorUser.badgeId})` : 'Authorized Operator'
-            }
-          ]
-        };
-      })
+  // Thumbnail renderer (Flat Vector Graphic on Pastel Background)
+  const renderItemThumbnail = (item, size = 'sm') => {
+    const isLarge = size === 'lg';
+    return (
+      <div
+        className={`${
+          isLarge ? 'w-full h-44 rounded-2xl p-4' : 'w-14 h-14 rounded-xl p-2 shrink-0'
+        } flex items-center justify-center transition-transform`}
+        style={{ backgroundColor: item.thumbBg || '#D5E8DB' }}
+      >
+        {item.userUploadedPhoto ? (
+          <img
+            src={item.userUploadedPhoto}
+            alt={item.title}
+            className="w-full h-full object-cover rounded-lg"
+          />
+        ) : (
+          renderVector(item.iconType)
+        )}
+      </div>
     );
-    setStatusConfirmTarget(null);
-    triggerToast(`Report ${report.id} marked as ${nextStatus}.`, 'green');
   };
 
   return (
-    <div className="min-h-screen bg-[#121412] text-[#F3F3EC] font-sans flex flex-col selection:bg-[#174D35] selection:text-[#F3F3EC]">
-      {/* Top Telemetry / Mode Strip */}
-      <div className="bg-[#1B201C] border-b border-[#303831] px-4 py-2 text-xs text-[#9CA69F]">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#174D35]/40 border border-[#2E8B57]/40 text-[#F3F3EC] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2E8B57] animate-pulse" />
-              {dataSourceMode === 'demo' ? 'Demonstration Dataset Active' : 'Connected to Multi-Modal Python ML API'}
-            </span>
-            <span className="hidden sm:inline">
-              {backendHealth ? `• MobileNetV2 (1,280-d) & NLP CBOW Active • 750 Indexed Vectors` : '• OpenCV & Supervised Random Forest (95.03% Accuracy)'}
-            </span>
+    <div className="min-h-screen bg-[#F6F4EE] text-[#1A1D1B] font-sans flex flex-col selection:bg-[#E1EFE6] selection:text-[#1E3A2F] relative overflow-x-hidden">
+      {/* =====================================================================
+          1. TOPMOST BAR (Image 2 & 3)
+          ===================================================================== */}
+      <div className="bg-[#101211] text-[#9CA3AF] text-xs py-2 px-4 sm:px-8 border-b border-[#222]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="font-medium text-[#E5E7EB]">
+            GLA University · Lost &amp; Found Office
           </div>
-          <button
-            onClick={() => {
-              const next = dataSourceMode === 'demo' ? 'live-api' : 'demo';
-              setDataSourceMode(next);
-              triggerToast(
-                next === 'demo'
-                  ? 'Switched to labeled Demonstration Dataset.'
-                  : 'API Link: Synchronized with Starlette/Uvicorn backend.',
-                'neutral'
-              );
-            }}
-            className="underline hover:text-[#F3F3EC] transition-colors"
-          >
-            Toggle Data Source Mode
-          </button>
+          <div className="flex items-center gap-4 text-[11.5px]">
+            <a
+              href="#help"
+              onClick={(e) => {
+                e.preventDefault();
+                showToast('Proctor Office Helpdesk: AB-1 Ground Floor, Room 104');
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Help
+            </a>
+            <span>·</span>
+            <a
+              href="#map"
+              onClick={(e) => {
+                e.preventDefault();
+                showToast('Campus Map: Central Library, AB-1, AB-2, Cafeteria, Sports Complex');
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Campus map
+            </a>
+            <span>·</span>
+            <a
+              href="#contact"
+              onClick={(e) => {
+                e.preventDefault();
+                showToast('Contact: lostandfound@gla.ac.in • Ph: +91 5662 250900');
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Contact
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* Main Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-[#121412]/90 border-b border-[#303831]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo */}
-          <button onClick={() => setActiveView('home')} className="flex items-center gap-3 text-left group">
-            <div className="w-9 h-9 rounded-lg bg-[#1B201C] border border-[#303831] flex items-center justify-center group-hover:border-[#2E8B57] transition-colors">
-              <MapPin className="w-5 h-5 text-[#2E8B57]" />
+      {/* =====================================================================
+          2. MAIN NAVIGATION (Findly Logo + Links + Sign In Button)
+          ===================================================================== */}
+      <header className="bg-[#F6F4EE] border-b border-[#EDEAE2] sticky top-0 z-40 backdrop-blur-xs bg-[#F6F4EE]/95">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+          {/* Left Brand: Search Icon + Findly */}
+          <button
+            onClick={() => setActiveTab('home')}
+            className="flex items-center gap-2.5 text-left group"
+          >
+            <div className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-[#1A1D1B]">
+              <Search className="w-5 h-5 text-[#1A1D1B] stroke-[2.5]" />
             </div>
-            <div>
-              <span className="block font-bold tracking-tight text-base text-[#F3F3EC] leading-none">
-                Smart Campus
-              </span>
-              <span className="block text-[10px] font-mono tracking-[0.18em] text-[#9CA69F] mt-1">
-                LOST &amp; FOUND
-              </span>
-            </div>
+            <span className="font-serif font-bold text-2xl tracking-tight text-[#1A1D1B]">
+              Findly
+            </span>
           </button>
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1">
-            {[
-              { id: 'home', label: 'Home' },
-              { id: 'matches', label: `Possible Matches (${matchSuggestions.length})` },
-              { id: 'how-it-works', label: 'How It Works & AI Architecture' }
-            ].map((nav) => (
-              <button
-                key={nav.id}
-                onClick={() => setActiveView(nav.id)}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeView === nav.id
-                    ? 'bg-[#1B201C] text-[#F3F3EC] border border-[#303831]'
-                    : 'text-[#9CA69F] hover:text-[#F3F3EC]'
-                }`}
-              >
-                {nav.label}
-              </button>
-            ))}
+          {/* Center Navigation Links (with active red underline #C24136) */}
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#4A4E4B]">
+            <button
+              onClick={() => setActiveTab('home')}
+              className={`pb-1 transition-colors relative ${
+                activeTab === 'home' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+              }`}
+            >
+              Home
+              {activeTab === 'home' && (
+                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('browse')}
+              className={`pb-1 transition-colors relative ${
+                activeTab === 'browse' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+              }`}
+            >
+              Browse items
+              {activeTab === 'browse' && (
+                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('report')}
+              className={`pb-1 transition-colors relative ${
+                activeTab === 'report' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+              }`}
+            >
+              Report an item
+              {activeTab === 'report' && (
+                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`pb-1 transition-colors relative ${
+                activeTab === 'analytics' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+              }`}
+            >
+              Data visuals
+              {activeTab === 'analytics' && (
+                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('claims')}
+              className={`pb-1 transition-colors relative ${
+                activeTab === 'claims' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+              }`}
+            >
+              My claims
+              {activeTab === 'claims' && (
+                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+              )}
+            </button>
           </nav>
 
-          {/* Header Actions */}
-          <div className="flex items-center gap-2.5">
-            {isOperatorAuthenticated ? (
-              <button
-                onClick={() => setActiveView('operator-dashboard')}
-                className="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#1B201C] text-[#F3F3EC] border border-[#2E8B57]/60 flex items-center gap-2"
-              >
-                <LayoutDashboard className="w-4 h-4 text-[#2E8B57]" />
-                <span>Operator Console</span>
-              </button>
+          {/* Right Action: Sign In Button */}
+          <div className="flex items-center gap-3">
+            {currentUser ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] px-3 py-1.5 rounded-full">
+                  {currentUser.name}
+                </span>
+                <button
+                  onClick={() => {
+                    setCurrentUser(null);
+                    localStorage.removeItem('findly_user');
+                    showToast('Signed out successfully.');
+                  }}
+                  className="text-xs text-[#6C726D] hover:text-[#C24136]"
+                >
+                  Logout
+                </button>
+              </div>
             ) : (
               <button
-                onClick={() => setActiveView('operator-login')}
-                className="px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-[#9CA69F] hover:text-[#F3F3EC] transition-colors"
+                onClick={() => setShowSignInModal(true)}
+                className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-6 py-2 rounded-full transition-all shadow-sm"
               >
-                Operator Sign In
+                Sign in
               </button>
             )}
-
-            <button
-              onClick={() => setActiveView('report-lost')}
-              className="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#C6283D] hover:bg-[#a82032] text-[#F3F3EC] transition-colors flex items-center gap-1.5"
-            >
-              <AlertCircle className="w-4 h-4" />
-              <span>Report Lost</span>
-            </button>
-
-            <button
-              onClick={() => setActiveView('report-found')}
-              className="hidden sm:flex px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#174D35] hover:bg-[#1f6345] text-[#F3F3EC] border border-[#2E8B57]/50 transition-colors items-center gap-1.5"
-            >
-              <CheckCircle2 className="w-4 h-4 text-[#2E8B57]" />
-              <span>Report Found</span>
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Floating Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-md rounded-xl bg-[#1B201C] border border-[#303831] px-4 py-3 shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <span
-            className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-              toast.tone === 'green'
-                ? 'bg-[#2E8B57]'
-                : toast.tone === 'crimson'
-                ? 'bg-[#C6283D]'
-                : 'bg-[#9CA69F]'
-            }`}
-          />
-          <p className="text-sm text-[#F3F3EC]">{toast.message}</p>
-          <button onClick={() => setToast(null)} className="text-[#9CA69F] hover:text-[#F3F3EC] p-1 ml-auto">
-            <X className="w-4 h-4" />
+      {/* Floating Toast Alert */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#1E3A2F] text-white text-xs font-medium px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
+          <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+          <span>{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="ml-2 hover:opacity-80">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* Content Body */}
-      <main className="flex-1">
-        {/* VIEW 1: HOME */}
-        {activeView === 'home' && (
-          <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-            {/* Hero Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center border-b border-[#303831] pb-12">
-              <div className="lg:col-span-6 space-y-5">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#1B201C] border border-[#303831]">
-                  <span className="w-2 h-2 rounded-full bg-[#2E8B57]" />
-                  <span className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#9CA69F]">
-                    YOUR CAMPUS. YOUR BELONGINGS. ONE PLACE.
-                  </span>
-                </div>
-                <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[#F3F3EC] leading-tight">
-                  Lost something?{' '}
-                  <span className="block mt-1 underline decoration-[#2E8B57] decoration-4 underline-offset-8">
-                    Let's bring it back.
-                  </span>
+      {/* =====================================================================
+          MAIN BODY ROUTING
+          ===================================================================== */}
+      <main className="flex-1 relative">
+        {/* ===================================================================
+            VIEW 1: HOME PAGE (Exact replica of Image 1 - Clean Flat Vectors)
+            =================================================================== */}
+        {activeTab === 'home' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 sm:py-14 space-y-16 relative">
+            {/* Background Faint Watermarks matching Image 1 */}
+            <div className="absolute left-[-20px] bottom-[-40px] w-64 h-96 opacity-[0.06] pointer-events-none -rotate-12">
+              <PhoneVector variant="black" />
+            </div>
+            <div className="absolute right-[-30px] top-[-30px] w-80 h-96 opacity-[0.05] pointer-events-none">
+              <BackpackVector />
+            </div>
+            <div className="absolute right-24 bottom-[-60px] w-60 h-80 opacity-[0.05] pointer-events-none rotate-6">
+              <NotebookVector />
+            </div>
+
+            {/* Hero Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+              {/* Left Column: Heading, Subtitle, Search bar, and Pills */}
+              <div className="lg:col-span-7 space-y-7">
+                {/* Green Campus Badge */}
+                <span className="inline-block bg-[#E1EFE6] text-[#2E5F46] text-xs font-medium px-3 py-1 rounded-full">
+                  GLA University campus
+                </span>
+
+                {/* Hero Headline */}
+                <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-[#1A1D1B] leading-[1.12]">
+                  Lost something on<br />
+                  campus? Let's<br />
+                  bring it back.
                 </h1>
-                <p className="text-base text-[#9CA69F] max-w-xl">
-                  Find your lost belongings, report items you've discovered, and explore potential matches through one intelligent campus platform powered by deep visual vectors and semantic similarity.
+
+                {/* Subtitle */}
+                <p className="text-[#6C726D] text-base sm:text-lg max-w-lg leading-relaxed">
+                  Report a lost or found item in under a minute and follow its status until it is back with its owner.
                 </p>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <button
-                    onClick={() => setActiveView('report-lost')}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium bg-[#C6283D] hover:bg-[#b02235] text-[#F3F3EC] shadow-lg shadow-[#C6283D]/20 transition-all hover:-translate-y-0.5"
-                  >
-                    <AlertCircle className="w-4 h-4" /> Report Lost Item
-                  </button>
-                  <button
-                    onClick={() => setActiveView('report-found')}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium bg-[#174D35] hover:bg-[#1f6345] text-[#F3F3EC] border border-[#2E8B57]/50 shadow-lg shadow-[#174D35]/20 transition-all hover:-translate-y-0.5"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-[#2E8B57]" /> I Found Something
-                  </button>
-                </div>
-              </div>
-              <div className="lg:col-span-6 grid grid-cols-2 gap-4">
-                <img
-                  src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80"
-                  alt="Backpack item"
-                  className="rounded-2xl h-64 w-full object-cover border border-[#303831] shadow-xl"
-                />
-                <img
-                  src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80"
-                  alt="Headphones item"
-                  className="rounded-2xl h-64 w-full object-cover border border-[#303831] shadow-xl"
-                />
-              </div>
-            </div>
 
-            {/* Search & Filter Bar */}
-            <div className="bg-[#1B201C] border border-[#303831] rounded-2xl p-5 space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                <div className="lg:col-span-6 relative">
-                  <Search className="w-4 h-4 text-[#9CA69F] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search backpack, bottle, headphones, calculator, ID card..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none transition-colors"
-                  />
-                </div>
-                <div className="lg:col-span-2">
-                  <select
-                    value={selectedReportType}
-                    onChange={(e) => setSelectedReportType(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                  >
-                    <option value="All">All Types</option>
-                    <option value="Lost">Lost Only</option>
-                    <option value="Found">Found Only</option>
-                  </select>
-                </div>
-                <div className="lg:col-span-2">
-                  <select
-                    value={selectedRecoveryStatus}
-                    onChange={(e) => setSelectedRecoveryStatus(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Recovered">Recovered</option>
-                    <option value="Closed">Closed</option>
-                  </select>
-                </div>
-                <div className="lg:col-span-2">
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                  >
-                    {CAMPUS_LOCATIONS.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Horizontal Category Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                      selectedCategory === cat
-                        ? 'bg-[#174D35] text-[#F3F3EC] border border-[#2E8B57]'
-                        : 'bg-[#121412] text-[#9CA69F] border border-[#303831] hover:text-[#F3F3EC]'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Reports Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredReports.length === 0 ? (
-                <div className="col-span-full text-center py-16 bg-[#1B201C] border border-[#303831] rounded-2xl">
-                  <p className="text-[#9CA69F] text-sm">No items found matching your filters.</p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSelectedCategory('All Items');
-                      setSelectedReportType('All');
-                      setSelectedRecoveryStatus('All');
-                      setSelectedLocation('All Locations');
+                {/* Search Bar Input (White card with Search pill button) */}
+                <div className="max-w-xl">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setActiveTab('browse');
                     }}
-                    className="mt-3 px-4 py-2 rounded-xl bg-[#174D35] text-xs font-semibold text-[#F3F3EC]"
+                    className="bg-white rounded-2xl p-2 pl-5 border border-[#EDEAE2] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center justify-between gap-3 focus-within:border-[#1E3A2F] transition-all"
                   >
-                    Reset All Filters
-                  </button>
+                    <input
+                      type="text"
+                      placeholder="Search a bag, ID card, bottle..."
+                      value={browseSearch}
+                      onChange={(e) => setBrowseSearch(e.target.value)}
+                      className="w-full bg-transparent text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-7 py-3 rounded-full transition-colors shrink-0"
+                    >
+                      Search
+                    </button>
+                  </form>
+
+                  {/* Quick Action Pills: "I lost something" & "I found something" */}
+                  <div className="flex items-center gap-3 pt-4">
+                    <button
+                      onClick={() => {
+                        setReportType('Lost');
+                        setActiveTab('report');
+                      }}
+                      className="bg-[#FBE4D8] hover:bg-[#F7D8C8] text-[#8C3A27] text-sm font-medium px-4 py-2 rounded-full transition-colors shadow-2xs"
+                    >
+                      I lost something
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setReportType('Found');
+                        setActiveTab('report');
+                      }}
+                      className="bg-[#D8ECE0] hover:bg-[#CAE5D3] text-[#25523A] text-sm font-medium px-4 py-2 rounded-full transition-colors shadow-2xs"
+                    >
+                      I found something
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                filteredReports.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-2xl bg-[#1B201C] border border-[#303831] overflow-hidden flex flex-col justify-between shadow-lg hover:border-[#2E8B57]/50 transition-all"
-                  >
-                    <div>
-                      <div className="relative h-52 bg-[#121412]">
-                        <img
-                          src={item.imageUrl}
-                          alt={item.imageAlt || item.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=600&q=80';
-                          }}
+              </div>
+
+              {/* Right Column: Layered Floating Cards (Vector Graphics from Image 1) */}
+              <div className="lg:col-span-5 relative flex justify-center py-6">
+                <div className="relative w-full max-w-md h-[340px]">
+                  {/* Card 1: Green Card (Sage backpack Vector Graphic) */}
+                  <div className="absolute top-0 left-0 bg-white rounded-3xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] w-60 z-10 transition-transform hover:-translate-y-1">
+                    <div className="bg-[#D5E8DB] rounded-2xl h-36 flex items-center justify-center p-3">
+                      <BackpackVector />
+                    </div>
+                    <div className="pt-3">
+                      <h4 className="font-medium text-sm text-[#1A1D1B]">Sage backpack</h4>
+                      <span className="inline-block mt-1 bg-[#E1EFE6] text-[#2E5F46] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">
+                        Found
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Peach Card (Peach smartphone Vector Graphic) */}
+                  <div className="absolute top-8 right-2 bg-white rounded-3xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] w-60 z-20 transition-transform hover:-translate-y-1">
+                    <div className="bg-[#FCE3D2] rounded-2xl h-36 flex items-center justify-center p-3">
+                      <PhoneVector variant="peach" />
+                    </div>
+                    <div className="pt-3">
+                      <h4 className="font-medium text-sm text-[#1A1D1B]">Peach smartphone</h4>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Predicted status Card (Pending) */}
+                  <div className="absolute bottom-2 left-16 bg-white rounded-2xl p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)] border border-[#EDEAE2] w-64 z-30 space-y-1.5 transition-transform hover:-translate-y-1">
+                    <span className="text-[11px] font-medium text-[#6C726D] block">
+                      Predicted status
+                    </span>
+                    <h3 className="font-serif font-bold text-2xl text-[#1A1D1B]">
+                      Pending
+                    </h3>
+                    {/* Green Confidence Progress Bar (72%) */}
+                    <div className="w-full bg-[#EDEAE2] h-2 rounded-full overflow-hidden mt-2">
+                      <div className="bg-[#3D7A5A] h-full w-[72%] rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom 4 Feature Cards (Report it / Track status / Get it back / Data visuals) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-6 relative z-10">
+              {/* Card 1: Report it */}
+              <div
+                onClick={() => setActiveTab('report')}
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+              >
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Report it</h3>
+                <p className="text-sm text-[#6C726D]">Add the item, place and date.</p>
+              </div>
+
+              {/* Card 2: Track status */}
+              <div
+                onClick={() => setActiveTab('browse')}
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+              >
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Track status</h3>
+                <p className="text-sm text-[#6C726D]">See Pending, Recovered or Closed.</p>
+              </div>
+
+              {/* Card 3: Get it back */}
+              <div
+                onClick={() => setActiveTab('claims')}
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+              >
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Get it back</h3>
+                <p className="text-sm text-[#6C726D]">Correct the status once it is recovered.</p>
+              </div>
+
+              {/* Card 4: Data visuals */}
+              <div
+                onClick={() => setActiveTab('analytics')}
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+              >
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Data visuals</h3>
+                <p className="text-sm text-[#6C726D]">Explore recovery charts &amp; ML metrics.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================================
+            VIEW 2: BROWSE ITEMS (Exact replica of Image 2 - Vector Icons)
+            =================================================================== */}
+        {activeTab === 'browse' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6 relative">
+            {/* Background Faint Watermarks matching Image 2 */}
+            <div className="absolute left-[-30px] bottom-40 w-52 h-36 opacity-[0.07] pointer-events-none">
+              <EarbudsCaseVector />
+            </div>
+            <div className="absolute right-8 top-16 w-56 h-80 opacity-[0.05] pointer-events-none rotate-12">
+              <PhoneVector variant="black" />
+            </div>
+
+            {/* Breadcrumb */}
+            <div className="text-xs text-[#787F79]">
+              <span className="cursor-pointer hover:underline" onClick={() => setActiveTab('home')}>Home</span> / <span className="text-[#1A1D1B] font-medium">Browse items</span>
+            </div>
+
+            {/* Page Title */}
+            <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1A1D1B] tracking-tight">
+              Browse items
+            </h1>
+
+            {/* Main Content Layout: Sidebar Filter + Items List */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2 relative z-10">
+              {/* Left Column: Filter Sidebar */}
+              <aside className="lg:col-span-3 bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-6">
+                <h3 className="font-serif font-bold text-lg text-[#1A1D1B]">Filter</h3>
+
+                {/* Type Filter */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-[#1A1D1B] uppercase tracking-wider">Type</h4>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2.5 text-sm text-[#4A4E4B] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={typeFilters.Lost}
+                        onChange={(e) => setTypeFilters({ ...typeFilters, Lost: e.target.checked })}
+                        className="w-4 h-4 rounded border-[#D5D2C8] text-[#1E3A2F] focus:ring-0"
+                      />
+                      <span>Lost</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 text-sm text-[#4A4E4B] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={typeFilters.Found}
+                        onChange={(e) => setTypeFilters({ ...typeFilters, Found: e.target.checked })}
+                        className="w-4 h-4 rounded border-[#D5D2C8] text-[#1E3A2F] focus:ring-0"
+                      />
+                      <span>Found</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Category Filter */}
+                <div className="space-y-3 pt-2 border-t border-[#F0EDE6]">
+                  <h4 className="text-xs font-semibold text-[#1A1D1B] uppercase tracking-wider">Category</h4>
+                  <div className="space-y-2">
+                    {['Bags', 'Cards and IDs', 'Electronics', 'Bottles'].map((cat) => (
+                      <label key={cat} className="flex items-center gap-2.5 text-sm text-[#4A4E4B] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={categoryFilters[cat] || false}
+                          onChange={(e) => setCategoryFilters({ ...categoryFilters, [cat]: e.target.checked })}
+                          className="w-4 h-4 rounded border-[#D5D2C8] text-[#1E3A2F] focus:ring-0"
                         />
-                        <div className="absolute top-3 left-3">
+                        <span>{cat}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reported Filter */}
+                <div className="space-y-3 pt-2 border-t border-[#F0EDE6]">
+                  <h4 className="text-xs font-semibold text-[#1A1D1B] uppercase tracking-wider">Reported</h4>
+                  <select
+                    value={timeFilter}
+                    onChange={(e) => setTimeFilter(e.target.value)}
+                    className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3 py-2 text-sm text-[#1A1D1B] focus:outline-none focus:border-[#1E3A2F]"
+                  >
+                    <option value="Any time">Any time</option>
+                    <option value="Today">Today</option>
+                    <option value="This week">This week</option>
+                    <option value="This month">This month</option>
+                  </select>
+                </div>
+              </aside>
+
+              {/* Right Column: Items List */}
+              <div className="lg:col-span-9 space-y-4">
+                {/* Header row: Count & Sort */}
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-xs text-[#6C726D]">
+                    Showing {filteredBrowseItems.length} results
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="bg-white border border-[#EDEAE2] rounded-xl px-3 py-1.5 text-xs text-[#1A1D1B] focus:outline-none"
+                    >
+                      <option value="Newest first">Newest first</option>
+                      <option value="Oldest first">Oldest first</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Horizontal Item Cards (Matching Image 2 exactly) */}
+                <div className="space-y-3">
+                  {paginatedItems.length === 0 ? (
+                    <div className="bg-white rounded-2xl p-12 text-center border border-[#EDEAE2]">
+                      <p className="text-sm text-[#6C726D]">No items found matching the selected filters.</p>
+                      <button
+                        onClick={() => {
+                          setBrowseSearch('');
+                          setTypeFilters({ Lost: false, Found: false });
+                          setCategoryFilters({ Bags: false, 'Cards and IDs': false, Electronics: false, Bottles: false });
+                        }}
+                        className="mt-3 text-xs font-semibold text-[#1E3A2F] underline"
+                      >
+                        Reset all filters
+                      </button>
+                    </div>
+                  ) : (
+                    paginatedItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-xl p-4 border border-[#EDEAE2] shadow-2xs hover:border-[#D5D2C8] transition-all flex items-center justify-between gap-4"
+                      >
+                        {/* Left: Pastel Vector Thumbnail & Text Details */}
+                        <div className="flex items-center gap-4">
+                          {renderItemThumbnail(item, 'sm')}
+                          <div>
+                            <h3 className="font-serif font-bold text-base text-[#1A1D1B]">
+                              {item.title}
+                            </h3>
+                            <p className="text-xs text-[#6C726D] mt-0.5">
+                              {item.location} · {item.dateText} · {item.id}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right: Badge & View Details Link */}
+                        <div className="flex items-center gap-5 shrink-0">
                           <span
-                            className={`px-2.5 py-1 rounded-md text-xs font-semibold ${
-                              item.reportType === 'Lost'
-                                ? 'bg-[#801F30] border border-[#C6283D] text-[#F3F3EC]'
-                                : 'bg-[#174D35] border border-[#2E8B57] text-[#F3F3EC]'
+                            className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md ${
+                              item.reportType === 'Found'
+                                ? 'bg-[#E1EFE6] text-[#2E5F46]'
+                                : 'bg-[#FCEAE6] text-[#C24136]'
                             }`}
                           >
                             {item.reportType}
                           </span>
-                        </div>
-                        <div className="absolute top-3 right-3">
-                          <span
-                            className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
-                              item.recoveryStatus === 'Recovered'
-                                ? 'bg-[#174D35]/90 border-[#2E8B57] text-[#F3F3EC]'
-                                : 'bg-[#121412]/90 border-[#303831] text-[#9CA69F]'
-                            }`}
+
+                          <button
+                            onClick={() => setSelectedItemModal(item)}
+                            className="text-xs font-medium text-[#1A1D1B] hover:underline"
                           >
-                            {item.recoveryStatus}
-                          </span>
+                            View details
+                          </button>
                         </div>
                       </div>
-                      <div className="p-5">
-                        <div className="flex justify-between text-xs text-[#9CA69F] font-mono mb-1">
-                          <span>{item.category}</span>
-                          <span>{item.id}</span>
-                        </div>
-                        <h3 className="text-lg font-bold text-[#F3F3EC] line-clamp-1">{item.title}</h3>
-                        <p className="text-sm text-[#9CA69F] mt-1 line-clamp-2">{item.description}</p>
-                        <div className="mt-4 pt-3 border-t border-[#303831] flex justify-between text-xs text-[#9CA69F]">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-[#2E8B57]" /> {item.location}
-                          </span>
-                          <span>{item.date}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="px-5 pb-5">
-                      <button
-                        onClick={() => setActiveItemModal(item)}
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-[#121412] hover:bg-[#222823] text-[#F3F3EC] border border-[#303831] transition-colors"
-                      >
-                        View Details &amp; Custody
-                      </button>
-                    </div>
-                  </article>
-                ))
-              )}
+                    ))
+                  )}
+                </div>
+
+                {/* Pagination (Image 2) */}
+                <div className="flex items-center justify-center gap-2 pt-6">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="bg-white border border-[#EDEAE2] px-4 py-2 rounded-xl text-xs font-medium text-[#1A1D1B] disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold ${
+                      currentPage === 1 ? 'bg-[#1E3A2F] text-white' : 'bg-white border border-[#EDEAE2] text-[#1A1D1B]'
+                    }`}
+                  >
+                    1
+                  </button>
+                  {totalPages > 1 && (
+                    <button
+                      onClick={() => setCurrentPage(2)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold ${
+                        currentPage === 2 ? 'bg-[#1E3A2F] text-white' : 'bg-white border border-[#EDEAE2] text-[#1A1D1B]'
+                      }`}
+                    >
+                      2
+                    </button>
+                  )}
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="bg-white border border-[#EDEAE2] px-4 py-2 rounded-xl text-xs font-medium text-[#1A1D1B] disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
-          </section>
+          </div>
         )}
 
-        {/* VIEW 2: POSSIBLE MATCHES */}
-        {activeView === 'matches' && (
-          <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            <div className="border-b border-[#303831] pb-5">
-              <h1 className="text-3xl font-bold tracking-tight text-[#F3F3EC]">
-                Possible Matches ({matchSuggestions.length})
-              </h1>
-              <p className="text-sm text-[#9CA69F] mt-1">
-                Candidate matches detected through MobileNetV2 visual embedding cosine projection and NLP semantic clustering.
-              </p>
+        {/* ===================================================================
+            VIEW 3: REPORT AN ITEM (Exact replica of Image 3 - Mini Vector Dropzone)
+            =================================================================== */}
+        {activeTab === 'report' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6 relative">
+            {/* Background Faint Watermarks matching Image 3 */}
+            <div className="absolute right-4 bottom-10 w-64 h-96 opacity-[0.06] pointer-events-none -rotate-6">
+              <PhoneVector variant="black" />
             </div>
 
-            {matchSuggestions.length === 0 ? (
-              <div className="text-center py-20 bg-[#1B201C] border border-[#303831] rounded-2xl">
-                <GitCompare className="w-10 h-10 text-[#9CA69F] mx-auto mb-3" />
-                <h3 className="text-lg font-bold">No Active Candidate Pairs</h3>
-                <p className="text-sm text-[#9CA69F] max-w-md mx-auto mt-1">
-                  When lost reports and found items share visual or categorical embeddings, potential matches appear here for verification.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {matchSuggestions.map((pair) => (
-                  <div key={pair.id} className="rounded-2xl bg-[#1B201C] border border-[#303831] p-5 space-y-4 shadow-xl">
-                    <div className="flex justify-between items-center border-b border-[#303831] pb-3">
-                      <span className="text-xs font-mono text-[#2E8B57]">{pair.cnnCategoryLabel}</span>
-                      {pair.similarityScore && (
-                        <span className="text-xs font-mono px-2.5 py-1 rounded bg-[#174D35]/40 border border-[#2E8B57] text-[#F3F3EC] font-semibold">
-                          Visual similarity: {pair.similarityScore}%
-                        </span>
-                      )}
-                    </div>
+            {/* Breadcrumb */}
+            <div className="text-xs text-[#787F79]">
+              <span className="cursor-pointer hover:underline" onClick={() => setActiveTab('home')}>Home</span> / <span className="text-[#1A1D1B] font-medium">Report an item</span>
+            </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Lost Side */}
-                      <div className="p-3.5 rounded-xl bg-[#121412] border border-[#C6283D]/40 space-y-2">
-                        <div className="h-32 w-full rounded-lg overflow-hidden bg-black">
-                          <img src={pair.lostReport.imageUrl} alt={pair.lostReport.title} className="w-full h-full object-cover" />
-                        </div>
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#801F30] text-[#F3F3EC]">
-                          LOST • {pair.lostReport.id}
-                        </span>
-                        <h4 className="text-sm font-bold text-[#F3F3EC] truncate">{pair.lostReport.title}</h4>
-                        <p className="text-xs text-[#9CA69F] line-clamp-1">{pair.lostReport.location}</p>
-                      </div>
+            {/* Page Title */}
+            <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1A1D1B] tracking-tight">
+              Report an item
+            </h1>
 
-                      {/* Found Side */}
-                      <div className="p-3.5 rounded-xl bg-[#121412] border border-[#2E8B57]/40 space-y-2">
-                        <div className="h-32 w-full rounded-lg overflow-hidden bg-black">
-                          <img src={pair.foundReport.imageUrl} alt={pair.foundReport.title} className="w-full h-full object-cover" />
-                        </div>
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#174D35] text-[#F3F3EC]">
-                          FOUND • {pair.foundReport.id}
-                        </span>
-                        <h4 className="text-sm font-bold text-[#F3F3EC] truncate">{pair.foundReport.title}</h4>
-                        <p className="text-xs text-[#9CA69F] line-clamp-1">{pair.foundReport.location}</p>
-                      </div>
-                    </div>
+            {/* Stepper: 1 Details · 2 Review · 3 Done */}
+            <div className="flex items-center gap-5 text-sm pt-1">
+              <span className="font-semibold text-[#1A1D1B]">1 Details</span>
+              <span className="text-[#9CA3AF]">2 Review</span>
+              <span className="text-[#9CA3AF]">3 Done</span>
+            </div>
 
-                    {/* Shared Characteristics */}
-                    <div className="bg-[#121412] rounded-xl p-3 border border-[#303831] space-y-1.5 text-xs text-[#9CA69F]">
-                      <span className="text-[10px] font-mono tracking-wider uppercase text-[#2E8B57] block mb-1">
-                        CORROBORATING FEATURES
-                      </span>
-                      {pair.sharedCharacteristics.map((feat, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#2E8B57]" />
-                          <span>{feat}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Claim Button */}
+            {/* Report Form Layout: Left Form + Right Sidebar Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2 relative z-10">
+              {/* Left Column: Main Form */}
+              <div className="lg:col-span-8 bg-white rounded-2xl p-7 sm:p-9 border border-[#EDEAE2] shadow-xs space-y-7">
+                {/* Lost vs Found Radio Toggle */}
+                <div className="flex items-center gap-3 pb-3 border-b border-[#F0EDE6]">
+                  <span className="text-xs font-semibold text-[#1A1D1B] uppercase tracking-wider">I am reporting:</span>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => setActiveClaimModal(pair.foundReport)}
-                      className="w-full py-2.5 rounded-xl bg-[#174D35] hover:bg-[#2E8B57] text-xs font-semibold text-[#F3F3EC] transition-colors"
+                      type="button"
+                      onClick={() => setReportType('Lost')}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        reportType === 'Lost'
+                          ? 'bg-[#FBE4D8] text-[#8C3A27] font-semibold'
+                          : 'bg-[#FAF9F5] text-[#6C726D]'
+                      }`}
                     >
-                      Initiate Ownership Claim &amp; Verification
+                      A lost belonging
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportType('Found')}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        reportType === 'Found'
+                          ? 'bg-[#D8ECE0] text-[#25523A] font-semibold'
+                          : 'bg-[#FAF9F5] text-[#6C726D]'
+                      }`}
+                    >
+                      A found item
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* VIEW 3: HOW IT WORKS & AI ARCHITECTURE */}
-        {activeView === 'how-it-works' && (
-          <section className="py-12 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-            <div className="border-b border-[#303831] pb-5">
-              <h1 className="text-3xl font-bold tracking-tight text-[#F3F3EC]">
-                How Smart Campus Lost &amp; Found Works
-              </h1>
-              <p className="text-sm text-[#9CA69F] mt-1">
-                Technical overview of our multimodal computer vision, semantic NLP, and supervised ML recovery models.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Card 1: CV */}
-              <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#174D35]/30 border border-[#2E8B57]/40 text-[#2E8B57] text-xs font-mono">
-                  DIRECTION A • COMPUTER VISION
                 </div>
-                <h2 className="text-xl font-bold text-[#F3F3EC]">Deep Feature Extraction Pipeline</h2>
-                <ul className="space-y-3 text-sm text-[#9CA69F]">
-                  <li className="flex items-start gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#2E8B57] mt-1.5 shrink-0" />
-                    <span><strong>1. OpenCV Preprocessing:</strong> Bilateral filtering, CLAHE contrast normalization, and 224×224 square center-cropping.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#2E8B57] mt-1.5 shrink-0" />
-                    <span><strong>2. MobileNetV2 Latent Embeddings:</strong> Extracts 1,280-dimensional unit-normalized feature vectors from pre-trained neural weights.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#2E8B57] mt-1.5 shrink-0" />
-                    <span><strong>3. Vectorized Dot-Product Search:</strong> Uses BLAS matrix multiplication to score candidate catalog items in under 4ms.</span>
-                  </li>
-                </ul>
-              </div>
 
-              {/* Card 2: Supervised ML */}
-              <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#801F30]/30 border border-[#C6283D]/40 text-[#C6283D] text-xs font-mono">
-                  DIRECTION B • PREDICTIVE ML
-                </div>
-                <h2 className="text-xl font-bold text-[#F3F3EC]">Supervised Recovery Classification</h2>
-                <p className="text-sm text-[#9CA69F] leading-relaxed">
-                  Trained on <strong>120,000 campus lost-and-found records</strong> across four algorithms. Selected model serves advisory predictions on return likelihood:
-                </p>
-                <div className="space-y-2 pt-1 font-mono text-xs">
-                  <div className="flex justify-between p-2 rounded bg-[#121412] border border-[#303831]">
-                    <span>Random Forest (Selected)</span>
-                    <span className="text-[#2E8B57] font-bold">95.03% Acc / 89.52% F1</span>
+                <form onSubmit={handleReportSubmit} className="space-y-7">
+                  {/* Section 1: About the item */}
+                  <div className="space-y-4">
+                    <h3 className="font-serif font-bold text-xl text-[#1A1D1B]">About the item</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Item name</label>
+                        <input
+                          type="text"
+                          required
+                          value={reportForm.itemName}
+                          onChange={(e) => setReportForm({ ...reportForm, itemName: e.target.value })}
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Category</label>
+                        <select
+                          value={reportForm.category}
+                          onChange={(e) => setReportForm({ ...reportForm, category: e.target.value })}
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                        >
+                          <option value="Bags">Bags</option>
+                          <option value="Cards and IDs">Cards and IDs</option>
+                          <option value="Electronics">Electronics</option>
+                          <option value="Bottles">Bottles</option>
+                          <option value="Calculators">Calculators</option>
+                          <option value="Keys">Keys</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Color</label>
+                        <input
+                          type="text"
+                          value={reportForm.color}
+                          onChange={(e) => setReportForm({ ...reportForm, color: e.target.value })}
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Brand (optional)</label>
+                        <input
+                          type="text"
+                          value={reportForm.brand}
+                          onChange={(e) => setReportForm({ ...reportForm, brand: e.target.value })}
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between p-2 rounded bg-[#121412] border border-[#303831] text-[#9CA69F]">
-                    <span>Gradient Boosting</span>
-                    <span>94.61% Acc / 88.94% F1</span>
+
+                  {/* Section 2: Where and when */}
+                  <div className="space-y-4 pt-2">
+                    <h3 className="font-serif font-bold text-xl text-[#1A1D1B]">Where and when</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Location</label>
+                        <input
+                          type="text"
+                          value={reportForm.location}
+                          onChange={(e) => setReportForm({ ...reportForm, location: e.target.value })}
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Date</label>
+                        <input
+                          type="text"
+                          placeholder="DD / MM / YYYY"
+                          value={reportForm.date}
+                          onChange={(e) => setReportForm({ ...reportForm, date: e.target.value })}
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Description</label>
+                      <textarea
+                        rows={3}
+                        value={reportForm.description}
+                        onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
+                        className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none resize-none"
+                      />
+                      <span className="text-xs text-[#6C726D] mt-1 block">Specific details improve the estimate.</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between p-2 rounded bg-[#121412] border border-[#303831] text-[#9CA69F]">
-                    <span>Decision Tree</span>
-                    <span>84.12% Acc / 79.30% F1</span>
-                  </div>
-                  <div className="flex justify-between p-2 rounded bg-[#121412] border border-[#303831] text-[#9CA69F]">
-                    <span>Logistic Regression</span>
-                    <span>78.20% Acc / 72.10% F1</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Card 3: NLP */}
-              <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#1B201C] border border-[#303831] text-[#F3F3EC] text-xs font-mono">
-                  DIRECTION C • SEMANTIC NLP
-                </div>
-                <h2 className="text-xl font-bold text-[#F3F3EC]">Multi-Modal Text Retrieval</h2>
-                <p className="text-sm text-[#9CA69F] leading-relaxed">
-                  When items are lost without a reference photograph, our dual-stage semantic retrieval engine indexes descriptions:
-                </p>
-                <ul className="space-y-2 text-sm text-[#9CA69F]">
-                  <li>• <strong>TF-IDF Vectorizer:</strong> 1-2 word n-grams capturing exact technical part names.</li>
-                  <li>• <strong>PyTorch CBOW Word2Vec:</strong> 100-dimensional contextual dense vectors capturing semantic proximity.</li>
-                </ul>
-              </div>
-
-              {/* Card 4: Proctor Protocol */}
-              <div className="p-6 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#174D35]/30 border border-[#2E8B57]/40 text-[#2E8B57] text-xs font-mono">
-                  CAMPUS PROTOCOL
-                </div>
-                <h2 className="text-xl font-bold text-[#F3F3EC]">Central Custody Desk Handover</h2>
-                <p className="text-sm text-[#9CA69F] leading-relaxed">
-                  Physical custody is managed centrally through the <strong>GLA Central Proctor &amp; Lost Property Office (Academic Block AB-1, Room 104)</strong>.
-                </p>
-                <div className="text-xs text-[#9CA69F] space-y-1">
-                  <p>• Operating Hours: Mon – Sat, 09:00 AM – 05:00 PM</p>
-                  <p>• Mandatory ID: Official Student/Faculty ID Card &amp; Claim Token</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* VIEW 4: REPORT LOST FORM */}
-        {activeView === 'report-lost' && (
-          <section className="py-12 max-w-2xl mx-auto px-4">
-            <div className="p-7 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-6 shadow-2xl">
-              <div className="border-b border-[#303831] pb-4">
-                <span className="inline-block px-2.5 py-1 rounded text-xs font-bold bg-[#801F30] text-[#F3F3EC] border border-[#C6283D] mb-2">
-                  INCIDENT FILING
-                </span>
-                <h2 className="text-2xl font-bold text-[#F3F3EC]">Report a Lost Belonging</h2>
-                <p className="text-xs text-[#9CA69F] mt-1">
-                  Provide detailed specifications. In the background, our MobileNetV2 visual model scans registered found items and creates match suggestions.
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmitLost} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Item Title *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Casio Scientific Calculator fx-991EX"
-                    value={lostForm.title}
-                    onChange={(e) => setLostForm({ ...lostForm, title: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#C6283D] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Category</label>
-                    <select
-                      value={lostForm.category}
-                      onChange={(e) => setLostForm({ ...lostForm, category: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#C6283D] focus:outline-none"
-                    >
-                      {CATEGORIES.filter((c) => c !== 'All Items').map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Brand / Model</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Casio / Apple / Milton"
-                      value={lostForm.brand}
-                      onChange={(e) => setLostForm({ ...lostForm, brand: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#C6283D] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Campus Facility</label>
-                    <select
-                      value={lostForm.location}
-                      onChange={(e) => setLostForm({ ...lostForm, location: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#C6283D] focus:outline-none"
-                    >
-                      {CAMPUS_LOCATIONS.filter((l) => l !== 'All Locations').map((l) => (
-                        <option key={l} value={l}>{l}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Specific Area</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 3rd Floor Quiet Study Desk #14"
-                      value={lostForm.specificArea}
-                      onChange={(e) => setLostForm({ ...lostForm, specificArea: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#C6283D] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Date Lost</label>
-                    <input
-                      type="date"
-                      value={lostForm.date}
-                      onChange={(e) => setLostForm({ ...lostForm, date: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Color / Finish</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Matte Black / Silver"
-                      value={lostForm.color}
-                      onChange={(e) => setLostForm({ ...lostForm, color: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Distinguishing Marks</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Small scratch on top cover, yellow keychain tag"
-                    value={lostForm.distinguishingFeatures}
-                    onChange={(e) => setLostForm({ ...lostForm, distinguishingFeatures: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Description</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Provide any additional context or circumstances..."
-                    value={lostForm.description}
-                    onChange={(e) => setLostForm({ ...lostForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC]"
-                  />
-                </div>
-
-                {/* Photo Dropzone */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Reference Photo (Optional)</label>
-                  <div className="border-2 border-dashed border-[#303831] rounded-xl p-4 text-center bg-[#121412]">
-                    {lostImagePreview ? (
+                  {/* Section 3: Photo Dropzone (3 Mini Vector Icons matching Image 3) */}
+                  <div className="border-2 border-dashed border-[#D5D2C8] rounded-2xl p-6 text-center bg-[#FAF9F5] space-y-2">
+                    {uploadedPhotoPreview ? (
                       <div className="flex items-center justify-between">
-                        <img src={lostImagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-lg" />
-                        <span className="text-xs text-[#2E8B57] font-mono">Photo ready for embedding</span>
+                        <img src={uploadedPhotoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-xl" />
+                        <span className="text-xs text-[#2E5F46] font-medium">Photo attached for MobileNetV2 embedding</span>
                         <button
                           type="button"
-                          onClick={() => { setLostImageFile(null); setLostImagePreview(null); }}
-                          className="px-2 py-1 text-xs bg-[#801F30] rounded text-[#F3F3EC]"
+                          onClick={() => {
+                            setUploadedPhoto(null);
+                            setUploadedPhotoPreview(null);
+                          }}
+                          className="text-xs bg-[#FCEAE6] text-[#C24136] px-3 py-1 rounded-lg"
                         >
                           Remove
                         </button>
                       </div>
                     ) : (
-                      <label className="cursor-pointer block">
-                        <Upload className="w-6 h-6 text-[#9CA69F] mx-auto mb-1" />
-                        <span className="text-xs text-[#9CA69F]">Click to upload reference image for MobileNetV2 embedding</span>
+                      <label className="cursor-pointer block space-y-2.5 py-1">
+                        {/* 3 mini flat graphic icons: green backpack, black phone, maroon notebook */}
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="w-6 h-8 rounded-md bg-[#D5E8DB] p-1 flex items-center justify-center shadow-2xs">
+                            <BackpackVector />
+                          </span>
+                          <span className="w-5 h-8 rounded-md bg-[#FCE3D2] p-1 flex items-center justify-center shadow-2xs">
+                            <PhoneVector variant="black" />
+                          </span>
+                          <span className="w-6 h-8 rounded-md bg-[#FAD4D8] p-1 flex items-center justify-center shadow-2xs">
+                            <NotebookVector />
+                          </span>
+                        </div>
+                        <div className="text-sm font-medium text-[#1A1D1B]">
+                          Drop a photo here or <span className="underline">browse files</span>
+                        </div>
                         <input
                           type="file"
                           accept="image/*"
@@ -1209,455 +1196,293 @@ function App() {
                           onChange={(e) => {
                             const file = e.target.files[0];
                             if (file) {
-                              setLostImageFile(file);
-                              setLostImagePreview(URL.createObjectURL(file));
+                              setUploadedPhoto(file);
+                              setUploadedPhotoPreview(URL.createObjectURL(file));
                             }
                           }}
                         />
                       </label>
                     )}
                   </div>
-                </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#303831]">
-                  <button
-                    type="button"
-                    onClick={() => setActiveView('home')}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#9CA69F] hover:text-[#F3F3EC]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingLost}
-                    className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-[#C6283D] hover:bg-[#b02235] text-[#F3F3EC] shadow-lg shadow-[#C6283D]/25 transition-all"
-                  >
-                    {isSubmittingLost ? 'Indexing...' : 'Submit Lost Report'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </section>
-        )}
-
-        {/* VIEW 5: REPORT FOUND FORM */}
-        {activeView === 'report-found' && (
-          <section className="py-12 max-w-2xl mx-auto px-4">
-            <div className="p-7 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-6 shadow-2xl">
-              <div className="border-b border-[#303831] pb-4">
-                <span className="inline-block px-2.5 py-1 rounded text-xs font-bold bg-[#174D35] text-[#F3F3EC] border border-[#2E8B57] mb-2">
-                  CAMPUS CITIZENSHIP
-                </span>
-                <h2 className="text-2xl font-bold text-[#F3F3EC]">Register Found Belonging</h2>
-                <p className="text-xs text-[#9CA69F] mt-1">
-                  Help return property to its rightful owner. Registered items are immediately cataloged into our visual vector repository.
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmitFound} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Item Title *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Stainless Steel Hydro Flask Water Bottle"
-                    value={foundForm.title}
-                    onChange={(e) => setFoundForm({ ...foundForm, title: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Category</label>
-                    <select
-                      value={foundForm.category}
-                      onChange={(e) => setFoundForm({ ...foundForm, category: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
+                  {/* Bottom Action Buttons (Continue & Save draft) */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-7 py-3 rounded-xl transition-colors shadow-sm"
                     >
-                      {CATEGORIES.filter((c) => c !== 'All Items').map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Brand / Model</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Hydro Flask / Casio"
-                      value={foundForm.brand}
-                      onChange={(e) => setFoundForm({ ...foundForm, brand: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Campus Location Found</label>
-                    <select
-                      value={foundForm.location}
-                      onChange={(e) => setFoundForm({ ...foundForm, location: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
+                      {isSubmitting ? 'Submitting...' : 'Continue'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => showToast('Draft saved locally.')}
+                      className="bg-white border border-[#EDEAE2] hover:bg-[#FAF9F5] text-[#1A1D1B] text-sm font-medium px-6 py-3 rounded-xl transition-colors"
                     >
-                      {CAMPUS_LOCATIONS.filter((l) => l !== 'All Locations').map((l) => (
-                        <option key={l} value={l}>{l}</option>
-                      ))}
-                    </select>
+                      Save draft
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Specific Area</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Near lecture hall podium"
-                      value={foundForm.specificArea}
-                      onChange={(e) => setFoundForm({ ...foundForm, specificArea: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Custody Arrangement</label>
-                  <select
-                    value={foundForm.custodyType}
-                    onChange={(e) => setFoundForm({ ...foundForm, custodyType: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                  >
-                    <option value="Turned in at Central Proctor Desk (AB-1, Rm 104)">
-                      Turned in at Central Proctor Desk (AB-1, Rm 104)
-                    </option>
-                    <option value="Stored at Department Front Desk">
-                      Stored at Department Front Desk
-                    </option>
-                    <option value="Held in Finder Temporary Custody">
-                      Held in Finder's Temporary Custody (Awaiting verified owner)
-                    </option>
-                  </select>
-                </div>
-
-                {/* Photo Dropzone */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Photograph of Found Item</label>
-                  <div className="border-2 border-dashed border-[#303831] rounded-xl p-4 text-center bg-[#121412]">
-                    {foundImagePreview ? (
-                      <div className="flex items-center justify-between">
-                        <img src={foundImagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-lg" />
-                        <span className="text-xs text-[#2E8B57] font-mono">Photo ready for catalog indexing</span>
-                        <button
-                          type="button"
-                          onClick={() => { setFoundImageFile(null); setFoundImagePreview(null); }}
-                          className="px-2 py-1 text-xs bg-[#801F30] rounded text-[#F3F3EC]"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer block">
-                        <Camera className="w-6 h-6 text-[#2E8B57] mx-auto mb-1" />
-                        <span className="text-xs text-[#9CA69F]">Click to take or upload clear photo of found property</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                              setFoundImageFile(file);
-                              setFoundImagePreview(URL.createObjectURL(file));
-                            }
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#303831]">
-                  <button
-                    type="button"
-                    onClick={() => setActiveView('home')}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#9CA69F] hover:text-[#F3F3EC]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingFound}
-                    className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-[#174D35] hover:bg-[#1f6345] text-[#F3F3EC] border border-[#2E8B57]/50 shadow-lg shadow-[#174D35]/25 transition-all"
-                  >
-                    {isSubmittingFound ? 'Cataloging...' : 'Register Found Belonging'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </section>
-        )}
-
-        {/* VIEW 6: OPERATOR LOGIN */}
-        {activeView === 'operator-login' && (
-          <section className="py-16 max-w-md mx-auto px-4">
-            <div className="p-7 rounded-2xl bg-[#1B201C] border border-[#303831] space-y-5 shadow-2xl">
-              <div className="text-center space-y-1">
-                <div className="w-12 h-12 rounded-xl bg-[#121412] border border-[#303831] mx-auto flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-[#2E8B57]" />
-                </div>
-                <h2 className="text-2xl font-bold text-[#F3F3EC] pt-2">Operator Console Sign In</h2>
-                <p className="text-xs text-[#9CA69F]">Authorized Proctor &amp; Campus Security Personnel Only</p>
+                </form>
               </div>
 
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    setIsOperatorAuthenticated(true);
-                    setOperatorUser({ name: 'Operator Sharma', role: 'Chief Security Officer', badgeId: 'OP-2026-04' });
-                    setActiveView('operator-dashboard');
-                    triggerToast('Authenticated as Operator Sharma (Badge OP-2026-04).', 'green');
-                  }}
-                  className="w-full py-3 rounded-xl bg-[#174D35] hover:bg-[#2E8B57] text-xs font-semibold text-[#F3F3EC] transition-all flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Instant Demo Sign In (Badge: OP-2026-04)</span>
-                </button>
+              {/* Right Column: Estimated Status & Status Guide Cards (Image 3) */}
+              <div className="lg:col-span-4 space-y-5">
+                {/* Card 1: ESTIMATED STATUS Card */}
+                <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-3">
+                  <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#C24136]">
+                    ESTIMATED STATUS
+                  </span>
+                  <h3 className="font-serif font-bold text-3xl text-[#1A1D1B]">
+                    Pending
+                  </h3>
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between text-xs text-[#6C726D]">
+                      <span>Confidence</span>
+                      <span>72%</span>
+                    </div>
+                    {/* Green Progress Bar (72%) */}
+                    <div className="w-full bg-[#EDEAE2] h-2 rounded-full overflow-hidden">
+                      <div className="bg-[#3D7A5A] h-full w-[72%] rounded-full" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#6C726D] pt-2 leading-relaxed">
+                    An estimate only. You can correct it after submitting.
+                  </p>
+                </div>
 
-                <button
-                  onClick={() => setActiveView('home')}
-                  className="w-full py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-xs font-medium text-[#9CA69F] hover:text-[#F3F3EC]"
-                >
-                  ← Return to Public Homepage
-                </button>
+                {/* Card 2: Status Guide Card (Soft Pink/Peach #FCEAE6) */}
+                <div className="bg-[#FCEAE6] rounded-2xl p-6 border border-[#F5D5CE] space-y-2">
+                  <h4 className="font-bold text-sm text-[#1A1D1B]">Status guide</h4>
+                  <div className="space-y-1.5 text-xs text-[#525753] leading-relaxed">
+                    <p><strong>Pending:</strong> not recovered yet.</p>
+                    <p><strong>Recovered:</strong> returned to its owner.</p>
+                    <p><strong>Closed:</strong> not recovered after 60 days.</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </section>
+          </div>
         )}
 
-        {/* VIEW 7: OPERATOR CONSOLE DASHBOARD */}
-        {activeView === 'operator-dashboard' && (
-          <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#303831] pb-5">
+        {/* ===================================================================
+            VIEW 4: MY CLAIMS / MATCH ALERTS (AI Text & Image Similarity View)
+            =================================================================== */}
+        {activeTab === 'claims' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6 relative">
+            <div className="text-xs text-[#787F79]">
+              <span className="cursor-pointer hover:underline" onClick={() => setActiveTab('home')}>Home</span> / <span className="text-[#1A1D1B] font-medium">My claims</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <span className="text-xs font-mono text-[#2E8B57]">SECURE OPERATOR CONSOLE</span>
-                <h1 className="text-3xl font-bold tracking-tight text-[#F3F3EC]">
-                  Campus Lost &amp; Found Inventory ({reports.length} Total Reports)
+                <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1A1D1B] tracking-tight">
+                  My claims &amp; Match alerts
                 </h1>
-                <p className="text-xs text-[#9CA69F] mt-1">
-                  Active Operator: <strong>{operatorUser?.name}</strong> • Badge: <code>{operatorUser?.badgeId}</code>
+                <p className="text-sm text-[#6C726D] mt-1">
+                  Candidate pairs detected via MobileNetV2 visual cosine similarity and TF-IDF semantic NLP.
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab('report')}
+                className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold px-4 py-2.5 rounded-full transition-colors"
+              >
+                + Report new item
+              </button>
+            </div>
+
+            {/* Candidate Match Pairs (Side-by-Side Review) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
+                  <span className="text-xs font-mono font-semibold text-[#2E5F46]">
+                    MATCH CANDIDATE #LF-M01
+                  </span>
+                  <span className="text-xs font-bold bg-[#E1EFE6] text-[#2E5F46] px-2.5 py-1 rounded-full">
+                    88% Visual Similarity
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Lost Side */}
+                  <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#FBE4D8] space-y-2">
+                    <span className="text-[10px] font-bold text-[#C24136] bg-[#FCEAE6] px-2 py-0.5 rounded">
+                      YOUR REPORT (LOST)
+                    </span>
+                    <div className="w-12 h-12 bg-[#D5E8DB] rounded-lg p-2 mx-auto">
+                      <BackpackVector />
+                    </div>
+                    <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center">Green backpack</h4>
+                    <p className="text-xs text-[#6C726D] text-center">Library Block 3 · Aer Daypack</p>
+                  </div>
+
+                  {/* Found Side */}
+                  <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D8ECE0] space-y-2">
+                    <span className="text-[10px] font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded">
+                      DISCOVERED (FOUND)
+                    </span>
+                    <div className="w-12 h-12 bg-[#D5E8DB] rounded-lg p-2 mx-auto">
+                      <BackpackVector />
+                    </div>
+                    <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center">Sage backpack</h4>
+                    <p className="text-xs text-[#6C726D] text-center">Library 3rd Floor Desk</p>
+                  </div>
+                </div>
+
+                <div className="text-xs text-[#6C726D] bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] space-y-1">
+                  <p>• MobileNetV2 1,280-d cosine vector projection matched.</p>
+                  <p>• Physical Custody: Central Proctor Desk (AB-1, Room 104).</p>
+                </div>
+
                 <button
                   onClick={() => {
-                    setIsOperatorAuthenticated(false);
-                    setOperatorUser(null);
-                    setActiveView('home');
-                    triggerToast('Signed out of Operator Console.', 'neutral');
+                    showToast('Claim ticket CLM-8491 generated. Visit Room 104 with Student ID.');
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#801F30] hover:bg-[#C6283D] text-xs font-semibold text-[#F3F3EC] flex items-center gap-1.5"
+                  className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-medium py-2.5 rounded-xl transition-colors"
                 >
-                  <LogOut className="w-4 h-4" /> Sign Out
+                  Verify &amp; Claim Item at Proctor Desk
+                </button>
+              </div>
+
+              {/* Second Match Example */}
+              <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
+                  <span className="text-xs font-mono font-semibold text-[#2E5F46]">
+                    MATCH CANDIDATE #LF-M02
+                  </span>
+                  <span className="text-xs font-bold bg-[#E1EFE6] text-[#2E5F46] px-2.5 py-1 rounded-full">
+                    94% Semantic Match
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#FBE4D8] space-y-2">
+                    <span className="text-[10px] font-bold text-[#C24136] bg-[#FCEAE6] px-2 py-0.5 rounded">
+                      YOUR REPORT (LOST)
+                    </span>
+                    <div className="w-12 h-12 bg-[#FCE3D2] rounded-lg p-2 mx-auto">
+                      <PhoneVector variant="black" />
+                    </div>
+                    <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center">Black smartphone</h4>
+                    <p className="text-xs text-[#6C726D] text-center">Cafeteria Patio</p>
+                  </div>
+
+                  <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D8ECE0] space-y-2">
+                    <span className="text-[10px] font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded">
+                      DISCOVERED (FOUND)
+                    </span>
+                    <div className="w-12 h-12 bg-[#FCE3D2] rounded-lg p-2 mx-auto">
+                      <PhoneVector variant="black" />
+                    </div>
+                    <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center">iPhone Matte Black</h4>
+                    <p className="text-xs text-[#6C726D] text-center">Cafeteria West Counter</p>
+                  </div>
+                </div>
+
+                <div className="text-xs text-[#6C726D] bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] space-y-1">
+                  <p>• TF-IDF n-grams + Word2Vec description similarity matched.</p>
+                  <p>• Physical Custody: Department Front Desk (AB-1).</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    showToast('Claim ticket CLM-8492 generated. Visit AB-1 Front Desk.');
+                  }}
+                  className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-medium py-2.5 rounded-xl transition-colors"
+                >
+                  Verify &amp; Claim Item at Department
                 </button>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Metrics Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-[#1B201C] border border-[#303831]">
-                <span className="text-xs text-[#9CA69F]">Total Logged</span>
-                <p className="text-2xl font-bold text-[#F3F3EC]">{reports.length}</p>
-              </div>
-              <div className="p-4 rounded-xl bg-[#1B201C] border border-[#303831]">
-                <span className="text-xs text-[#9CA69F]">Pending Surveillance</span>
-                <p className="text-2xl font-bold text-[#C6283D]">
-                  {reports.filter((r) => r.recoveryStatus === 'Pending').length}
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-[#1B201C] border border-[#303831]">
-                <span className="text-xs text-[#9CA69F]">Recovered Items</span>
-                <p className="text-2xl font-bold text-[#2E8B57]">
-                  {reports.filter((r) => r.recoveryStatus === 'Recovered').length}
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-[#1B201C] border border-[#303831]">
-                <span className="text-xs text-[#9CA69F]">Visual Embeddings</span>
-                <p className="text-2xl font-bold text-[#F3F3EC]">1,280-d Vector</p>
-              </div>
-            </div>
-
-            {/* Reports Table */}
-            <div className="rounded-2xl bg-[#1B201C] border border-[#303831] overflow-hidden shadow-xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#121412] text-[#9CA69F] uppercase font-mono border-b border-[#303831]">
-                    <tr>
-                      <th className="p-3.5">ID</th>
-                      <th className="p-3.5">Title</th>
-                      <th className="p-3.5">Type</th>
-                      <th className="p-3.5">Facility</th>
-                      <th className="p-3.5">Status</th>
-                      <th className="p-3.5">ML Status Prediction</th>
-                      <th className="p-3.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#303831]">
-                    {reports.map((r) => (
-                      <tr key={r.id} className="hover:bg-[#121412]/50 transition-colors">
-                        <td className="p-3.5 font-mono text-[#9CA69F]">{r.id}</td>
-                        <td className="p-3.5 font-bold text-[#F3F3EC]">{r.title}</td>
-                        <td className="p-3.5">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                              r.reportType === 'Lost' ? 'bg-[#801F30] text-[#F3F3EC]' : 'bg-[#174D35] text-[#F3F3EC]'
-                            }`}
-                          >
-                            {r.reportType}
-                          </span>
-                        </td>
-                        <td className="p-3.5 text-[#9CA69F]">{r.location}</td>
-                        <td className="p-3.5">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
-                              r.recoveryStatus === 'Recovered'
-                                ? 'bg-[#174D35]/50 border-[#2E8B57] text-[#2E8B57]'
-                                : 'bg-[#121412] border-[#303831] text-[#9CA69F]'
-                            }`}
-                          >
-                            {r.recoveryStatus}
-                          </span>
-                        </td>
-                        <td className="p-3.5 font-mono text-[#2E8B57]">
-                          {r.mlEvaluation?.predictedStatus} ({r.mlEvaluation?.algorithm})
-                        </td>
-                        <td className="p-3.5 text-right space-x-2">
-                          <button
-                            onClick={() => setActiveItemModal(r)}
-                            className="px-2.5 py-1 rounded bg-[#121412] border border-[#303831] text-[#F3F3EC] hover:bg-[#222823]"
-                          >
-                            Audit
-                          </button>
-                          {r.recoveryStatus !== 'Recovered' && (
-                            <button
-                              onClick={() => setStatusConfirmTarget({ report: r, nextStatus: 'Recovered' })}
-                              className="px-2.5 py-1 rounded bg-[#174D35] hover:bg-[#2E8B57] text-[#F3F3EC]"
-                            >
-                              Mark Recovered
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
+        {/* ===================================================================
+            VIEW 5: DATA VISUALS & ANALYTICS (Graphs, Pie Charts, ML Metrics)
+            =================================================================== */}
+        {activeTab === 'analytics' && (
+          <DataVisualsView
+            onNavigateReport={() => setActiveTab('report')}
+            onNavigateBrowse={() => setActiveTab('browse')}
+            showToast={showToast}
+          />
         )}
       </main>
 
-      {/* MODAL 1: ITEM DETAILS MODAL */}
-      {activeItemModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-[#1B201C] border border-[#303831] rounded-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center border-b border-[#303831] pb-3">
+      {/* =====================================================================
+          VIEW DETAILS MODAL (Clean Vector Graphic Preview)
+          ===================================================================== */}
+      {selectedItemModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-7 border border-[#EDEAE2] shadow-2xl space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-[#9CA69F]">{activeItemModal.id}</span>
+                <span className="font-mono text-xs text-[#6C726D]">{selectedItemModal.id}</span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    activeItemModal.reportType === 'Lost'
-                      ? 'bg-[#801F30] text-[#F3F3EC]'
-                      : 'bg-[#174D35] text-[#F3F3EC]'
+                  className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                    selectedItemModal.reportType === 'Found'
+                      ? 'bg-[#E1EFE6] text-[#2E5F46]'
+                      : 'bg-[#FCEAE6] text-[#C24136]'
                   }`}
                 >
-                  {activeItemModal.reportType}
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-[#121412] border border-[#303831] text-[#9CA69F]">
-                  {activeItemModal.recoveryStatus}
+                  {selectedItemModal.reportType}
                 </span>
               </div>
-              <button
-                onClick={() => setActiveItemModal(null)}
-                className="text-[#9CA69F] hover:text-[#F3F3EC] p-1"
-              >
+              <button onClick={() => setSelectedItemModal(null)} className="text-[#6C726D] hover:text-[#1A1D1B]">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="h-64 w-full rounded-xl overflow-hidden bg-black border border-[#303831]">
-              <img
-                src={activeItemModal.imageUrl}
-                alt={activeItemModal.title}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=600&q=80';
-                }}
-              />
-            </div>
+            {/* Pastel Vector Graphic Card (No stock photos!) */}
+            {renderItemThumbnail(selectedItemModal, 'lg')}
 
             <div>
-              <span className="text-xs font-mono text-[#2E8B57]">{activeItemModal.category}</span>
-              <h2 className="text-2xl font-bold text-[#F3F3EC]">{activeItemModal.title}</h2>
-              <p className="text-sm text-[#9CA69F] mt-1">{activeItemModal.description}</p>
+              <h3 className="font-serif font-bold text-2xl text-[#1A1D1B]">{selectedItemModal.title}</h3>
+              <p className="text-sm text-[#6C726D] mt-1">{selectedItemModal.description}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs bg-[#121412] p-4 rounded-xl border border-[#303831]">
+            <div className="grid grid-cols-2 gap-3 bg-[#FAF9F5] p-4 rounded-xl border border-[#EDEAE2] text-xs">
               <div>
-                <span className="text-[#9CA69F] block">Location Facility</span>
-                <strong className="text-[#F3F3EC]">{activeItemModal.location}</strong>
+                <span className="text-[#6C726D] block">Location:</span>
+                <strong className="text-[#1A1D1B]">{selectedItemModal.location}</strong>
               </div>
               <div>
-                <span className="text-[#9CA69F] block">Specific Area</span>
-                <strong className="text-[#F3F3EC]">{activeItemModal.specificArea || 'Campus Area'}</strong>
+                <span className="text-[#6C726D] block">Date:</span>
+                <strong className="text-[#1A1D1B]">{selectedItemModal.dateText} ({selectedItemModal.date})</strong>
               </div>
               <div>
-                <span className="text-[#9CA69F] block">Reported Date &amp; Time</span>
-                <strong className="text-[#F3F3EC]">{activeItemModal.date} • {activeItemModal.approximateTime || 'N/A'}</strong>
+                <span className="text-[#6C726D] block">Category:</span>
+                <strong className="text-[#1A1D1B]">{selectedItemModal.category}</strong>
               </div>
               <div>
-                <span className="text-[#9CA69F] block">ML Advisory Classification</span>
-                <strong className="text-[#2E8B57] font-mono">
-                  {activeItemModal.mlEvaluation?.algorithm || 'Random Forest'} ({activeItemModal.mlEvaluation?.predictedStatus || 'Pending'})
-                </strong>
+                <span className="text-[#6C726D] block">Predicted Status:</span>
+                <strong className="text-[#2E5F46]">{selectedItemModal.recoveryStatus} ({selectedItemModal.confidence}%)</strong>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-[#F3F3EC]">Distinguishing Features:</span>
-              <p className="text-xs text-[#9CA69F] bg-[#121412] p-3 rounded-lg border border-[#303831]">
-                {activeItemModal.distinguishingFeatures || 'None specified.'}
-              </p>
-            </div>
-
-            {/* Timeline */}
-            <div className="space-y-2 border-t border-[#303831] pt-3">
-              <span className="text-xs font-mono tracking-wider uppercase text-[#9CA69F]">AUDIT TRAIL</span>
-              <div className="space-y-2">
-                {activeItemModal.timeline?.map((step) => (
-                  <div key={step.id} className="flex items-center justify-between text-xs p-2 rounded bg-[#121412] border border-[#303831]">
-                    <span className="text-[#F3F3EC]">{step.label}</span>
-                    <span className="text-[#9CA69F] font-mono">{step.date}</span>
-                  </div>
-                ))}
+            {selectedItemModal.distinguishingFeatures && (
+              <div className="text-xs text-[#6C726D] space-y-1">
+                <strong>Distinguishing features:</strong>
+                <p className="bg-[#FAF9F5] p-2.5 rounded-lg border border-[#EDEAE2]">{selectedItemModal.distinguishingFeatures}</p>
               </div>
-            </div>
+            )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => setActiveItemModal(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#121412] border border-[#303831] text-[#9CA69F] hover:text-[#F3F3EC]"
+                onClick={() => setSelectedItemModal(null)}
+                className="bg-[#FAF9F5] border border-[#EDEAE2] text-[#1A1D1B] text-xs font-medium px-4 py-2.5 rounded-xl hover:bg-[#F0EDE6]"
               >
-                Close Window
+                Close
               </button>
-              {activeItemModal.reportType === 'Found' && activeItemModal.recoveryStatus === 'Pending' && (
+              {selectedItemModal.reportType === 'Found' && (
                 <button
                   onClick={() => {
-                    const target = activeItemModal;
-                    setActiveItemModal(null);
-                    setActiveClaimModal(target);
+                    setSelectedItemModal(null);
+                    showToast(`Claim initiated for ${selectedItemModal.id}. Visit Central Proctor Desk Room 104.`);
                   }}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#174D35] hover:bg-[#2E8B57] text-[#F3F3EC]"
+                  className="bg-[#1E3A2F] text-white text-xs font-medium px-5 py-2.5 rounded-xl hover:bg-[#162C23]"
                 >
-                  Lodge Claim
+                  Claim this item
                 </button>
               )}
             </div>
@@ -1665,116 +1490,99 @@ function App() {
         </div>
       )}
 
-      {/* MODAL 2: CLAIM VERIFICATION MODAL */}
-      {activeClaimModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[#1B201C] border border-[#303831] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-[#303831] pb-3">
-              <div>
-                <span className="text-[10px] font-mono text-[#2E8B57] uppercase tracking-wider">CUSTODY HANDOVER PROTOCOL</span>
-                <h3 className="text-xl font-bold text-[#F3F3EC]">Claim Belonging</h3>
-              </div>
-              <button onClick={() => setActiveClaimModal(null)} className="text-[#9CA69F] hover:text-[#F3F3EC]">
+      {/* =====================================================================
+          SIGN IN MODAL
+          ===================================================================== */}
+      {showSignInModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-7 border border-[#EDEAE2] shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
+              <h3 className="font-serif font-bold text-xl text-[#1A1D1B]">Campus Sign In</h3>
+              <button onClick={() => setShowSignInModal(false)} className="text-[#6C726D]">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-[#121412] border border-[#303831] flex items-center gap-3">
-              <img src={activeClaimModal.imageUrl} alt={activeClaimModal.title} className="w-14 h-14 object-cover rounded-lg" />
-              <div>
-                <h4 className="text-sm font-bold text-[#F3F3EC]">{activeClaimModal.title}</h4>
-                <p className="text-xs text-[#9CA69F]">Found at {activeClaimModal.location}</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleLodgeClaim} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">University Roll / Student ID *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 2115000123"
-                  value={claimRollNo}
-                  onChange={(e) => setClaimRollNo(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#F3F3EC] mb-1">Proof of Ownership / Distinct Markings</label>
-                <textarea
-                  rows={2}
-                  placeholder="Detail screen lock, stickers, serial number, or exact contents..."
-                  value={claimNotes}
-                  onChange={(e) => setClaimNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#121412] border border-[#303831] text-sm text-[#F3F3EC] focus:border-[#2E8B57] focus:outline-none"
-                />
-              </div>
-
-              <div className="p-3 rounded-lg bg-[#174D35]/20 border border-[#2E8B57]/40 text-xs text-[#9CA69F]">
-                Pick up item at <strong>Central Proctor Desk (AB-1, Rm 104)</strong> with your valid student ID card.
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveClaimModal(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#121412] border border-[#303831] text-[#9CA69F]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#174D35] hover:bg-[#2E8B57] text-[#F3F3EC]"
-                >
-                  Submit Official Claim
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: STATUS UPDATE CONFIRMATION (OPERATOR) */}
-      {statusConfirmTarget && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[#1B201C] border border-[#303831] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-xl font-bold text-[#F3F3EC]">Confirm Status Change</h3>
-            <p className="text-sm text-[#9CA69F]">
-              Are you sure you want to mark report <strong>{statusConfirmTarget.report.id}</strong> ({statusConfirmTarget.report.title}) as <strong>{statusConfirmTarget.nextStatus}</strong>?
+            <p className="text-xs text-[#6C726D]">
+              Sign in with your official GLA University institutional account (@gla.ac.in).
             </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setStatusConfirmTarget(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#121412] border border-[#303831] text-[#9CA69F]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmStatusUpdate}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#174D35] hover:bg-[#2E8B57] text-[#F3F3EC]"
-              >
-                Confirm Update
-              </button>
-            </div>
+
+            <button
+              onClick={() => {
+                const user = { name: 'Vemula Gopi Chand', email: 'gopichand.vemula_cs21@gla.ac.in', role: 'Student' };
+                setCurrentUser(user);
+                localStorage.setItem('findly_user', JSON.stringify(user));
+                setShowSignInModal(false);
+                showToast('Signed in as Vemula Gopi Chand (@gla.ac.in)');
+              }}
+              className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold py-3 rounded-xl transition-colors"
+            >
+              One-Click Student Demo Sign In
+            </button>
           </div>
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="border-t border-[#303831] bg-[#121412] py-8 text-xs text-[#9CA69F]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#2E8B57]" />
-            <span className="font-semibold text-[#F3F3EC]">Smart Campus Lost &amp; Found Portal</span>
-            <span>• Developed by Vemula Gopi Chand (B.Tech CSE - AI &amp; ML)</span>
+      {/* =====================================================================
+          FOOTER (Exact replica of Image 2 & 3)
+          ===================================================================== */}
+      <footer className="border-t border-[#EDEAE2] bg-[#F6F4EE] py-14 mt-16 text-xs text-[#6C726D] relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid grid-cols-2 md:grid-cols-4 gap-10">
+          {/* Col 1: Findly */}
+          <div className="space-y-2">
+            <h4 className="font-serif font-bold text-base text-[#1A1D1B]">Findly</h4>
+            <p className="text-xs text-[#6C726D] leading-relaxed">
+              Smart Campus Lost &amp; Found, GLA University,<br />Greater Noida.
+            </p>
           </div>
-          <div className="flex items-center gap-4 text-[#9CA69F]">
-            <span>MobileNetV2 (1280-d)</span>
-            <span>•</span>
-            <span>TF-IDF + Word2Vec</span>
-            <span>•</span>
-            <span>Random Forest (95.03%)</span>
+
+          {/* Col 2: Use */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-xs text-[#1A1D1B] uppercase tracking-wider">Use</h4>
+            <ul className="space-y-1.5">
+              <li>
+                <button onClick={() => setActiveTab('browse')} className="hover:text-[#1A1D1B] transition-colors">
+                  Browse items
+                </button>
+              </li>
+              <li>
+                <button onClick={() => setActiveTab('report')} className="hover:text-[#1A1D1B] transition-colors">
+                  Report an item
+                </button>
+              </li>
+              <li>
+                <button onClick={() => setActiveTab('analytics')} className="hover:text-[#1A1D1B] transition-colors">
+                  Data visuals
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          {/* Col 3: Status */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-xs text-[#1A1D1B] uppercase tracking-wider">Status</h4>
+            <ul className="space-y-1.5">
+              <li><span>Pending</span></li>
+              <li><span>Recovered</span></li>
+              <li><span>Closed</span></li>
+            </ul>
+          </div>
+
+          {/* Col 4: Office */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-xs text-[#1A1D1B] uppercase tracking-wider">Office</h4>
+            <p className="text-xs text-[#6C726D] leading-relaxed">
+              <a
+                href="#desk"
+                onClick={(e) => {
+                  e.preventDefault();
+                  showToast('Proctor Office: Academic Block AB-1, Room 104');
+                }}
+                className="hover:text-[#1A1D1B] transition-colors"
+              >
+                Contact the Lost &amp; Found desk
+              </a>
+            </p>
           </div>
         </div>
       </footer>

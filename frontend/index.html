@@ -4,24 +4,38 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Campus Lost &amp; Found</title>
-    <!-- Tailwind CSS CDN matching reference UI -->
+    <title>Findly — Smart Campus Lost &amp; Found</title>
+    <!-- Google Fonts: Lora (Editorial Serif) & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              serif: ['Lora', 'Georgia', 'serif'],
+              sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+            },
             colors: {
-              campus: {
-                bg: '#121412',
-                card: '#1B201C',
-                border: '#303831',
-                forest: '#2E8B57',
-                forestDark: '#174D35',
-                crimson: '#C6283D',
-                crimsonDark: '#801F30',
-                text: '#F3F3EC',
-                muted: '#9CA69F'
+              findly: {
+                bg: '#F6F4EE',
+                card: '#FFFFFF',
+                border: '#E7E4DC',
+                borderLight: '#EDEAE2',
+                dark: '#1E3A2F',
+                darkHover: '#162C23',
+                coral: '#C24136',
+                coralLight: '#FCEAE6',
+                coralDark: '#8C3A27',
+                sage: '#2E5F46',
+                sageLight: '#E1EFE6',
+                sageDark: '#1E3A2F',
+                text: '#1A1D1B',
+                muted: '#6C726D',
               }
             }
           }
@@ -29,7 +43,7 @@
       }
     </script>
   </head>
-  <body class="bg-[#121412] text-[#F3F3EC] antialiased">
+  <body class="bg-[#F6F4EE] text-[#1A1D1B] font-sans antialiased min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

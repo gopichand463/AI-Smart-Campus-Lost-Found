@@ -281,120 +281,172 @@ const INITIAL_ITEMS = [
 const STOP_WORDS = new Set([
   'a', 'an', 'the', 'in', 'on', 'at', 'with', 'and', 'or', 'of', 'for', 'to',
   'from', 'by', 'my', 'is', 'it', 'this', 'that', 'i', 'have', 'lost', 'found',
-  'please', 'help', 'near', 'inside', 'outside', 'around'
+  'please', 'help', 'near', 'inside', 'outside', 'around', 'area', 'floor'
 ]);
-
-const SEMANTIC_ENTITIES = {
-  charger: ['charger', 'adapter', 'cable', 'usbc', 'usb-c', 'usb', 'type-c', 'cord', 'powerbank', 'plug', 'watt', '65w', '20w', 'fast'],
-  phone: ['phone', 'smartphone', 'iphone', 'samsung', 'android', 'mobile', 'device', 'apple', 'oneplus', 'pixel'],
-  backpack: ['backpack', 'bag', 'daypack', 'rucksack', 'knapsack', 'tote', 'schoolbag', 'aer'],
-  bottle: ['bottle', 'flask', 'water', 'sipper', 'thermos', 'hydro', 'milton'],
-  earbuds: ['earbuds', 'airpods', 'earphones', 'headphones', 'case', 'pods', 'buds', 'tws', 'boat'],
-  notebook: ['notebook', 'book', 'register', 'diary', 'notes', 'spiral', 'classmate'],
-  idcard: ['id', 'card', 'identity', 'lanyard', 'pass', 'rfid', 'student'],
-};
 
 function cleanTokens(str = '') {
   return str
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/[\s-]+/)
-    .filter(t => t.length > 1 && !STOP_WORDS.has(t));
+    .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
 }
 
-function findEntityGroup(tokens) {
-  for (const [group, keywords] of Object.entries(SEMANTIC_ENTITIES)) {
-    if (tokens.some(t => keywords.some(k => t.includes(k) || k.includes(t)))) {
-      return group;
-    }
+// Canonical entity type detector (Strict word-boundary matching on title & category)
+export function detectItemEntity(item) {
+  const title = (item.title || '').toLowerCase().trim();
+  const category = (item.category || '').toLowerCase().trim();
+  const icon = (item.iconType || '').toLowerCase().trim();
+
+  // 1. Icon type if explicitly identified
+  if (icon === 'charger') return 'charger';
+  if (icon.startsWith('phone')) return 'phone';
+  if (icon === 'backpack') return 'backpack';
+  if (icon === 'bottle') return 'bottle';
+  if (icon === 'earbuds') return 'earbuds';
+  if (icon === 'idcard') return 'idcard';
+  if (icon === 'notebook') return 'notebook';
+
+  // 2. Exact word-boundary matching on title (Title is definitive)
+  if (/\b(charger|adapter|usbc|usb-c|powerbank|charging|fast\s*charger|65w|20w|plug)\b/i.test(title)) {
+    return 'charger';
   }
-  return null;
+  if (/\b(phone|smartphone|iphone|samsung|android|mobile|pixel|oneplus)\b/i.test(title)) {
+    return 'phone';
+  }
+  if (/\b(backpack|bag|daypack|rucksack|knapsack|tote|schoolbag)\b/i.test(title)) {
+    return 'backpack';
+  }
+  if (/\b(bottle|flask|water\s*bottle|sipper|thermos)\b/i.test(title)) {
+    return 'bottle';
+  }
+  if (/\b(earbud|earbuds|airpod|airpods|headphone|headphones|earphones|headset|tws)\b/i.test(title)) {
+    return 'earbuds';
+  }
+  if (/\b(id\s*card|identity\s*card|idcard|student\s*id|lanyard|library\s*card)\b/i.test(title)) {
+    return 'idcard';
+  }
+  if (/\b(notebook|register|diary|notes|spiral|book)\b/i.test(title)) {
+    return 'notebook';
+  }
+
+  // 3. Fallback to broad categories only if title didn't specify
+  if (category.includes('bottle')) return 'bottle';
+  if (category.includes('bag')) return 'backpack';
+  if (category.includes('card') || category.includes('id')) return 'idcard';
+
+  return 'generic';
 }
 
 export function computeItemSimilarity(itemA, itemB) {
-  const tokensA = cleanTokens(`${itemA.title} ${itemA.description || ''} ${itemA.brand || ''}`);
-  const tokensB = cleanTokens(`${itemB.title} ${itemB.description || ''} ${itemB.brand || ''}`);
+  const entityA = detectItemEntity(itemA);
+  const entityB = detectItemEntity(itemB);
+
+  // RULE 1: STRICT INCOMPATIBILITY CHECK
+  // A charger must never match a backpack; a phone must never match an ID card!
+  if (entityA !== 'generic' && entityB !== 'generic' && entityA !== entityB) {
+    return { score: 0, isMatch: false, reasons: [] };
+  }
+
+  // RULE 2: CATEGORY CLASH CHECK
+  const catA = (itemA.category || '').toLowerCase();
+  const catB = (itemB.category || '').toLowerCase();
+  const isCategoryClash =
+    (catA.includes('electronics') && (catB.includes('bag') || catB.includes('bottle') || catB.includes('card'))) ||
+    (catB.includes('electronics') && (catA.includes('bag') || catA.includes('bottle') || catA.includes('card'))) ||
+    (catA.includes('bag') && (catB.includes('bottle') || catB.includes('card') || catB.includes('electronics'))) ||
+    (catB.includes('bag') && (catA.includes('bottle') || catA.includes('card') || catA.includes('electronics')));
+
+  if (isCategoryClash) {
+    return { score: 0, isMatch: false, reasons: [] };
+  }
+
+  // If one or both are generic, require compatible categories
+  if (entityA === 'generic' || entityB === 'generic') {
+    const isCatMatch = catA && catB && (catA === catB || catA.includes(catB) || catB.includes(catA));
+    if (!isCatMatch) {
+      return { score: 0, isMatch: false, reasons: [] };
+    }
+  }
+
+  // RULE 3: SEMANTIC SIMILARITY SCORING (For compatible items)
+  let score = 52; // Base confidence for confirmed same entity type
+  const reasons = [];
+
+  reasons.push(`Semantic entity alignment: Identified as ${entityA !== 'generic' ? entityA : 'matching category'}`);
+
   const titleTokensA = cleanTokens(itemA.title);
   const titleTokensB = cleanTokens(itemB.title);
 
-  const groupA = findEntityGroup(tokensA) || findEntityGroup(cleanTokens(itemA.category));
-  const groupB = findEntityGroup(tokensB) || findEntityGroup(cleanTokens(itemB.category));
-
-  let score = 0;
-  const reasons = [];
-
-  // 1. Title keyword overlap
-  const sharedTitleTokens = titleTokensA.filter(t => titleTokensB.includes(t));
+  // Direct title keyword overlap
+  const sharedTitleTokens = titleTokensA.filter((t) => titleTokensB.includes(t));
   if (sharedTitleTokens.length > 0) {
-    score += 48;
-    reasons.push(`Direct title keyword match: "${sharedTitleTokens.slice(0, 2).join(', ')}"`);
-  } else if (groupA && groupB && groupA === groupB) {
-    score += 44;
-    reasons.push(`Semantic entity alignment: Identified as ${groupA}`);
+    score += Math.min(26, sharedTitleTokens.length * 12);
+    reasons.push(`Direct title keyword match: "${sharedTitleTokens.slice(0, 3).join(', ')}"`);
   }
 
-  // 2. Category match
-  const catA = (itemA.category || '').toLowerCase();
-  const catB = (itemB.category || '').toLowerCase();
-  if (catA && catB && (catA === catB || catA.includes(catB) || catB.includes(catA))) {
-    score += 24;
-    reasons.push(`Category match: ${itemA.category}`);
-  } else if (groupA && groupB && groupA === groupB) {
-    score += 10;
+  // Brand alignment
+  const brandA = (itemA.brand || '').toLowerCase().trim();
+  const brandB = (itemB.brand || '').toLowerCase().trim();
+  const hasBrandA = brandA && brandA !== 'unknown' && brandA !== 'unspecified';
+  const hasBrandB = brandB && brandB !== 'unknown' && brandB !== 'unspecified';
+
+  if (hasBrandA && hasBrandB) {
+    const bTokA = cleanTokens(brandA);
+    const bTokB = cleanTokens(brandB);
+    const sharedBrand = bTokA.filter((b) => bTokB.includes(b));
+    if (sharedBrand.length > 0) {
+      score += 15;
+      reasons.push(`Brand alignment: ${itemA.brand}`);
+    } else {
+      // Conflicting explicit brands (e.g. ASUS vs Apple)
+      score -= 16;
+    }
   }
 
-  // 3. Color alignment
-  const colorA = (itemA.color || '').toLowerCase();
-  const colorB = (itemB.color || '').toLowerCase();
-  if (colorA && colorB && colorA !== 'unspecified' && colorB !== 'unspecified') {
-    const cTokensA = cleanTokens(colorA);
-    const cTokensB = cleanTokens(colorB);
-    const sharedColor = cTokensA.filter(c => cTokensB.includes(c));
+  // Color alignment
+  const colorA = (itemA.color || '').toLowerCase().trim();
+  const colorB = (itemB.color || '').toLowerCase().trim();
+  const hasColorA = colorA && colorA !== 'unspecified' && colorA !== 'unknown';
+  const hasColorB = colorB && colorB !== 'unspecified' && colorB !== 'unknown';
+
+  if (hasColorA && hasColorB) {
+    const cTokA = cleanTokens(colorA);
+    const cTokB = cleanTokens(colorB);
+    const sharedColor = cTokA.filter((c) => cTokB.includes(c));
     if (sharedColor.length > 0) {
       score += 12;
       reasons.push(`Color similarity: ${sharedColor.join(', ')}`);
+    } else {
+      // Conflicting colors (e.g. black vs white)
+      score -= 10;
     }
   }
 
-  // 4. Brand alignment
-  const brandA = (itemA.brand || '').toLowerCase();
-  const brandB = (itemB.brand || '').toLowerCase();
-  if (brandA && brandB && brandA !== 'unknown' && brandB !== 'unknown') {
-    const bTokensA = cleanTokens(brandA);
-    const bTokensB = cleanTokens(brandB);
-    const sharedBrand = bTokensA.filter(b => bTokensB.includes(b));
-    if (sharedBrand.length > 0) {
-      score += 12;
-      reasons.push(`Brand alignment: ${itemA.brand}`);
-    }
-  }
-
-  // 5. Visual Icon match
-  if (itemA.iconType && itemB.iconType && itemA.iconType === itemB.iconType) {
-    score += 10;
-    reasons.push(`MobileNetV2 visual feature vector match (${itemA.iconType})`);
-  }
-
-  // 6. Location proximity
+  // Location proximity
   const locA = (itemA.location || '').toLowerCase();
   const locB = (itemB.location || '').toLowerCase();
-  const locList = ['library', 'cafeteria', 'ab-1', 'ab-2', 'ab-3', 'engineering', 'gate', 'sports', 'canteen', 'hostel', 'lab', 'block 3', 'block 1'];
-  const matchedLoc = locList.find(loc => locA.includes(loc) && locB.includes(loc));
-  if (matchedLoc) {
+  const campusZones = ['library', 'cafeteria', 'ab-1', 'ab-2', 'ab-3', 'engineering', 'gate', 'sports', 'canteen', 'hostel', 'lab', 'block 3', 'block 1', '205'];
+  const matchedZone = campusZones.find((z) => locA.includes(z) && locB.includes(z));
+  if (matchedZone) {
     score += 8;
-    reasons.push(`Location proximity: Both reported near ${matchedLoc.toUpperCase()}`);
+    reasons.push(`Location proximity: Both reported near ${matchedZone.toUpperCase()}`);
   }
 
-  const finalScore = Math.min(96, Math.max(0, Math.round(score)));
-  const isMatch = (sharedTitleTokens.length > 0) || (groupA && groupB && groupA === groupB) || (finalScore >= 45);
-
-  if (reasons.length === 0 && isMatch) {
-    reasons.push('TF-IDF semantic n-grams & keyword similarity matched');
+  // Visual feature vector match
+  if (itemA.iconType && itemB.iconType && itemA.iconType === itemB.iconType) {
+    score += 8;
   }
+
   reasons.push('Physical Custody: Central Proctor Desk (AB-1, Room 104)');
 
+  const finalScore = Math.min(98, Math.max(0, Math.round(score)));
+
+  // Strict confidence threshold: Must be >= 65% to be considered a match
+  const isMatch = finalScore >= 65;
+
   return {
-    score: finalScore || (isMatch ? 88 : 28),
+    score: finalScore,
     isMatch,
     reasons: reasons.slice(0, 3),
   };
@@ -638,7 +690,7 @@ function App() {
     setActiveTab('browse');
   };
 
-  // Dynamic AI Match Pairs between Lost and Found items
+  // Dynamic AI Match Pairs: For each specific item, compute ONLY top 3 matches!
   const dynamicMatches = useMemo(() => {
     const lostItems = items.filter((item) => item.reportType === 'Lost');
     const foundItems = items.filter((item) => item.reportType === 'Found');
@@ -646,48 +698,73 @@ function App() {
     const calculated = [];
     const seenPairs = new Set();
 
+    // Deduplicate lost items by title, category, and user so multiple submissions don't duplicate
+    const uniqueLostItems = [];
+    const seenLostSignatures = new Set();
     lostItems.forEach((lost) => {
-      foundItems.forEach((found) => {
-        const pairKey = `${lost.id}__${found.id}`;
-        if (seenPairs.has(pairKey)) return;
+      const sig = `${(lost.title || '').trim().toLowerCase()}__${(lost.reportedBy || '').toLowerCase()}__${lost.category}`;
+      if (!seenLostSignatures.has(sig)) {
+        seenLostSignatures.add(sig);
+        uniqueLostItems.push(lost);
+      }
+    });
 
+    // For EACH specific lost item, compute candidates and keep ONLY TOP 3!
+    uniqueLostItems.forEach((lost) => {
+      const candidatesForThisLost = [];
+
+      foundItems.forEach((found) => {
         const sim = computeItemSimilarity(lost, found);
         if (sim.isMatch) {
-          seenPairs.add(pairKey);
-
-          const lostUserEmail = (lost.reportedBy || '').toLowerCase();
-          const foundUserEmail = (found.reportedBy || '').toLowerCase();
-          const curEmail = currentUser ? currentUser.email.toLowerCase() : '';
-
-          const isUserLost = Boolean(
-            curEmail && (
-              lostUserEmail === curEmail ||
-              (!lost.reportedBy && (lost.title.toLowerCase().includes('charger') || lost.category.toLowerCase().includes('electronics')))
-            )
-          );
-          const isUserFound = Boolean(curEmail && foundUserEmail === curEmail);
-          const isDirectUserMatch = isUserLost || isUserFound;
-
-          calculated.push({
-            id: `LF-M${lost.id.replace('LF-', '')}-${found.id.replace('LF-', '')}`,
-            score: sim.score,
-            matchType: sim.score >= 85 ? `${sim.score}% Semantic & NLP Match` : `${sim.score}% Visual Similarity`,
-            reasons: sim.reasons,
-            lostItem: lost,
-            foundItem: found,
-            isDirectUserMatch,
-            userSide: isUserLost ? 'lost' : (isUserFound ? 'found' : null),
+          candidatesForThisLost.push({
+            lost,
+            found,
+            sim,
           });
         }
+      });
+
+      // User requirement: "it will get only top three matchings only for a specific thing"
+      candidatesForThisLost.sort((a, b) => b.sim.score - a.sim.score);
+      const top3ForThisLost = candidatesForThisLost.slice(0, 3);
+
+      top3ForThisLost.forEach(({ lost, found, sim }) => {
+        const pairKey = `${lost.id}__${found.id}`;
+        if (seenPairs.has(pairKey)) return;
+        seenPairs.add(pairKey);
+
+        const lostUserEmail = (lost.reportedBy || '').toLowerCase();
+        const foundUserEmail = (found.reportedBy || '').toLowerCase();
+        const curEmail = currentUser ? currentUser.email.toLowerCase() : '';
+
+        const isUserLost = Boolean(
+          curEmail && (
+            lostUserEmail === curEmail ||
+            (!lost.reportedBy && (lost.title.toLowerCase().includes('charger') || lost.category.toLowerCase().includes('electronics')))
+          )
+        );
+        const isUserFound = Boolean(curEmail && foundUserEmail === curEmail);
+        const isDirectUserMatch = isUserLost || isUserFound;
+
+        calculated.push({
+          id: `LF-M${lost.id.replace('LF-', '')}-${found.id.replace('LF-', '')}`,
+          score: sim.score,
+          matchType: sim.score >= 85 ? `${sim.score}% Semantic & NLP Match` : `${sim.score}% Visual Similarity`,
+          reasons: sim.reasons,
+          lostItem: lost,
+          foundItem: found,
+          isDirectUserMatch,
+          userSide: isUserLost ? 'lost' : (isUserFound ? 'found' : null),
+        });
       });
     });
 
     // Reference benchmark match cards to preserve the demonstration pairs from screenshots
     const hasBackpackMatch = calculated.some(
-      (m) => m.lostItem.iconType === 'backpack' || m.foundItem.iconType === 'backpack'
+      (m) => m.lostItem.iconType === 'backpack' && m.foundItem.iconType === 'backpack'
     );
     const hasPhoneMatch = calculated.some(
-      (m) => m.lostItem.iconType?.includes('phone') || m.foundItem.iconType?.includes('phone')
+      (m) => m.lostItem.iconType?.includes('phone') && m.foundItem.iconType?.includes('phone')
     );
 
     const benchmarkCards = [];
@@ -777,9 +854,20 @@ function App() {
     return dynamicMatches.filter((m) => m.isDirectUserMatch);
   }, [dynamicMatches]);
 
+  const currentUserLostItems = useMemo(() => {
+    if (!currentUser) return [];
+    const curEmail = (currentUser.email || '').toLowerCase();
+    return items.filter(
+      (it) =>
+        it.reportType === 'Lost' &&
+        (it.reportedBy?.toLowerCase() === curEmail ||
+          (!it.reportedBy && (it.title.toLowerCase().includes('charger') || it.title.toLowerCase().includes('asus'))))
+    );
+  }, [items, currentUser]);
+
   const displayedClaimsMatches = useMemo(() => {
     if (claimsFilter === 'my') {
-      return userDirectMatches.length > 0 ? userDirectMatches : dynamicMatches;
+      return userDirectMatches;
     }
     return dynamicMatches;
   }, [claimsFilter, dynamicMatches, userDirectMatches]);
@@ -1704,6 +1792,31 @@ function App() {
               </div>
             )}
 
+            {/* No Matchings Banner for Logged-In User with Unmatched Reports */}
+            {currentUser && currentUserLostItems.length > 0 && userDirectMatches.length === 0 && (
+              <div className="bg-[#FAF9F5] border border-[#EDEAE2] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs animate-in fade-in">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-full bg-[#E5E8DF] text-[#1E3A2F] flex items-center justify-center shrink-0">
+                    <Search className="w-5 h-5 text-[#2E5F46]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#EAB308] animate-pulse" />
+                      <h3 className="font-serif font-bold text-base text-[#1A1D1B]">
+                        There are no matchings right now for your reported items
+                      </h3>
+                    </div>
+                    <p className="text-xs text-[#6C726D] mt-0.5">
+                      Our AI engine is actively monitoring campus reports for {currentUserLostItems.map((i) => `"${i.title}"`).join(', ')}. As soon as a matching item is turned in to the Lost &amp; Found desk, it will appear here.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-[#E1EFE6] text-[#2E5F46] shrink-0 border border-[#B8DBC5]">
+                  Active Campus Scan
+                </span>
+              </div>
+            )}
+
             {/* Claims Filter Pills */}
             <div className="flex items-center gap-2 pt-1 border-b border-[#EDEAE2] pb-3">
               <button
@@ -1733,120 +1846,152 @@ function App() {
               </button>
             </div>
 
-            {/* Dynamic Candidate Match Pairs Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-              {displayedClaimsMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className={`bg-white rounded-2xl p-6 border shadow-xs space-y-4 relative transition-all ${
-                    match.isDirectUserMatch
-                      ? 'border-[#386A51] ring-2 ring-[#2E5F46]/10 shadow-sm'
-                      : 'border-[#EDEAE2]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-semibold text-[#2E5F46]">
-                        MATCH CANDIDATE #{match.id}
-                      </span>
-                      {match.isDirectUserMatch && (
-                        <span className="text-[10px] font-bold bg-[#E1EFE6] text-[#1E3A2F] border border-[#B8DBC5] px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-[#2E5F46]" />
-                          YOUR REPORT MATCHED
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold bg-[#E1EFE6] text-[#2E5F46] px-2.5 py-1 rounded-full">
-                      {match.matchType}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Lost Side */}
-                    <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#FBE4D8] space-y-2 flex flex-col items-center">
-                      <span className="text-[10px] font-bold text-[#C24136] bg-[#FCEAE6] px-2 py-0.5 rounded uppercase tracking-wide">
-                        {match.isDirectUserMatch && match.userSide === 'lost'
-                          ? 'YOUR REPORT (LOST)'
-                          : 'REPORTED (LOST)'}
-                      </span>
-                      <div
-                        className="w-12 h-12 rounded-lg p-2 flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: match.lostItem.thumbBg || '#E5E8DF' }}
-                      >
-                        {match.lostItem.userUploadedPhoto ? (
-                          <img
-                            src={match.lostItem.userUploadedPhoto}
-                            alt={match.lostItem.title}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        ) : (
-                          renderVector(match.lostItem.iconType)
-                        )}
-                      </div>
-                      <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center line-clamp-1">
-                        {match.lostItem.title}
-                      </h4>
-                      <p className="text-xs text-[#6C726D] text-center line-clamp-1">
-                        {match.lostItem.location || 'Campus'} · {match.lostItem.brand || match.lostItem.specificArea || 'Campus Area'}
-                      </p>
-                      <span className="text-[10px] text-[#9CA3AF] text-center block">
-                        {match.lostItem.reportedBy === currentUser?.email
-                          ? `Reported by you (${currentUser?.name})`
-                          : (match.lostItem.reporterName || 'Campus Student')}
-                      </span>
-                    </div>
-
-                    {/* Found Side */}
-                    <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D8ECE0] space-y-2 flex flex-col items-center">
-                      <span className="text-[10px] font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded uppercase tracking-wide">
-                        {match.isDirectUserMatch && match.userSide === 'found'
-                          ? 'YOUR REPORT (FOUND)'
-                          : 'DISCOVERED (FOUND)'}
-                      </span>
-                      <div
-                        className="w-12 h-12 rounded-lg p-2 flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: match.foundItem.thumbBg || '#E5E8DF' }}
-                      >
-                        {match.foundItem.userUploadedPhoto ? (
-                          <img
-                            src={match.foundItem.userUploadedPhoto}
-                            alt={match.foundItem.title}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        ) : (
-                          renderVector(match.foundItem.iconType)
-                        )}
-                      </div>
-                      <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center line-clamp-1">
-                        {match.foundItem.title}
-                      </h4>
-                      <p className="text-xs text-[#6C726D] text-center line-clamp-1">
-                        {match.foundItem.location || 'Campus'} · {match.foundItem.brand || match.foundItem.specificArea || 'Found'}
-                      </p>
-                      <span className="text-[10px] text-[#9CA3AF] text-center block">
-                        {match.foundItem.reportedBy === currentUser?.email
-                          ? `Reported by you (${currentUser?.name})`
-                          : (match.foundItem.reporterName || 'Campus Finder')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-[#6C726D] bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] space-y-1">
-                    {match.reasons.map((reason, idx) => (
-                      <p key={idx}>• {reason}</p>
-                    ))}
-                  </div>
-
+            {/* Dynamic Candidate Match Pairs Grid or Dedicated Empty State */}
+            {displayedClaimsMatches.length === 0 ? (
+              <div className="bg-white rounded-3xl p-10 sm:p-14 text-center border border-[#EDEAE2] shadow-xs space-y-4 max-w-xl mx-auto my-6 animate-in fade-in">
+                <div className="w-16 h-16 rounded-full bg-[#FAF9F5] border border-[#EDEAE2] flex items-center justify-center mx-auto text-[#6C726D]">
+                  <Search className="w-8 h-8 text-[#1E3A2F]" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="font-serif font-bold text-2xl text-[#1A1D1B]">
+                    There are no matchings right now
+                  </h3>
+                  <p className="text-xs text-[#6C726D] max-w-md mx-auto leading-relaxed">
+                    {claimsFilter === 'my'
+                      ? 'No matching found items detected on campus for your reported belongings right now. Our AI engine continuously monitors all incoming campus submissions.'
+                      : 'No candidate pairs detected right now in the campus database. New reports are automatically paired in real time.'}
+                  </p>
+                </div>
+                <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                   <button
-                    onClick={() => setActiveClaimModal(match)}
-                    className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-medium py-2.5 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                    onClick={() => setActiveTab('report')}
+                    className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold px-5 py-2.5 rounded-full transition-colors shadow-xs"
                   >
-                    <ShieldCheck className="w-4 h-4 text-[#86EFAC]" />
-                    Verify &amp; Claim Item at Proctor Desk
+                    + Report an item
+                  </button>
+                  <button
+                    onClick={() => setClaimsFilter('all')}
+                    className="bg-[#FAF9F5] hover:bg-[#F0EDE6] text-[#1A1D1B] border border-[#EDEAE2] text-xs font-medium px-5 py-2.5 rounded-full transition-colors"
+                  >
+                    View all campus alerts
                   </button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {displayedClaimsMatches.map((match) => (
+                  <div
+                    key={match.id}
+                    className={`bg-white rounded-2xl p-6 border shadow-xs space-y-4 relative transition-all ${
+                      match.isDirectUserMatch
+                        ? 'border-[#386A51] ring-2 ring-[#2E5F46]/10 shadow-sm'
+                        : 'border-[#EDEAE2]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-semibold text-[#2E5F46]">
+                          MATCH CANDIDATE #{match.id}
+                        </span>
+                        {match.isDirectUserMatch && (
+                          <span className="text-[10px] font-bold bg-[#E1EFE6] text-[#1E3A2F] border border-[#B8DBC5] px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-[#2E5F46]" />
+                            YOUR REPORT MATCHED
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold bg-[#E1EFE6] text-[#2E5F46] px-2.5 py-1 rounded-full">
+                        {match.matchType}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Lost Side */}
+                      <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#FBE4D8] space-y-2 flex flex-col items-center">
+                        <span className="text-[10px] font-bold text-[#C24136] bg-[#FCEAE6] px-2 py-0.5 rounded uppercase tracking-wide">
+                          {match.isDirectUserMatch && match.userSide === 'lost'
+                            ? 'YOUR REPORT (LOST)'
+                            : 'REPORTED (LOST)'}
+                        </span>
+                        <div
+                          className="w-12 h-12 rounded-lg p-2 flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: match.lostItem.thumbBg || '#E5E8DF' }}
+                        >
+                          {match.lostItem.userUploadedPhoto ? (
+                            <img
+                              src={match.lostItem.userUploadedPhoto}
+                              alt={match.lostItem.title}
+                              className="w-full h-full object-cover rounded"
+                            />
+                          ) : (
+                            renderVector(match.lostItem.iconType)
+                          )}
+                        </div>
+                        <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center line-clamp-1">
+                          {match.lostItem.title}
+                        </h4>
+                        <p className="text-xs text-[#6C726D] text-center line-clamp-1">
+                          {match.lostItem.location || 'Campus'} · {match.lostItem.brand || match.lostItem.specificArea || 'Campus Area'}
+                        </p>
+                        <span className="text-[10px] text-[#9CA3AF] text-center block">
+                          {match.lostItem.reportedBy === currentUser?.email
+                            ? `Reported by you (${currentUser?.name})`
+                            : (match.lostItem.reporterName || 'Campus Student')}
+                        </span>
+                      </div>
+
+                      {/* Found Side */}
+                      <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D8ECE0] space-y-2 flex flex-col items-center">
+                        <span className="text-[10px] font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded uppercase tracking-wide">
+                          {match.isDirectUserMatch && match.userSide === 'found'
+                            ? 'YOUR REPORT (FOUND)'
+                            : 'DISCOVERED (FOUND)'}
+                        </span>
+                        <div
+                          className="w-12 h-12 rounded-lg p-2 flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: match.foundItem.thumbBg || '#E5E8DF' }}
+                        >
+                          {match.foundItem.userUploadedPhoto ? (
+                            <img
+                              src={match.foundItem.userUploadedPhoto}
+                              alt={match.foundItem.title}
+                              className="w-full h-full object-cover rounded"
+                            />
+                          ) : (
+                            renderVector(match.foundItem.iconType)
+                          )}
+                        </div>
+                        <h4 className="font-serif font-bold text-sm text-[#1A1D1B] text-center line-clamp-1">
+                          {match.foundItem.title}
+                        </h4>
+                        <p className="text-xs text-[#6C726D] text-center line-clamp-1">
+                          {match.foundItem.location || 'Campus'} · {match.foundItem.brand || match.foundItem.specificArea || 'Found'}
+                        </p>
+                        <span className="text-[10px] text-[#9CA3AF] text-center block">
+                          {match.foundItem.reportedBy === currentUser?.email
+                            ? `Reported by you (${currentUser?.name})`
+                            : (match.foundItem.reporterName || 'Campus Finder')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-[#6C726D] bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] space-y-1">
+                      {match.reasons.map((reason, idx) => (
+                        <p key={idx}>• {reason}</p>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setActiveClaimModal(match)}
+                      className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-medium py-2.5 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-[#86EFAC]" />
+                      Verify &amp; Claim Item at Proctor Desk
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -7,6 +7,7 @@ import {
   HelpCircle, Phone, ArrowUpRight
 } from 'lucide-react';
 import DataVisualsView from './components/DataVisualsView';
+import AuthModal from './components/AuthModal';
 
 // ============================================================================
 // BESPOKE FLAT VECTOR ILLUSTRATIONS (Pixel-perfect matching of user screenshots)
@@ -586,16 +587,22 @@ function App() {
           <div className="flex items-center gap-3">
             {currentUser ? (
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] px-3 py-1.5 rounded-full">
-                  {currentUser.name}
-                </span>
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-xs font-bold text-[#1A1D1B] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+                    {currentUser.name}
+                  </span>
+                  <span className="text-[10.5px] text-[#2E5F46] font-mono bg-[#E1EFE6] px-2 py-0.2 rounded-full mt-0.5">
+                    {currentUser.email}
+                  </span>
+                </div>
                 <button
                   onClick={() => {
                     setCurrentUser(null);
                     localStorage.removeItem('findly_user');
-                    showToast('Signed out successfully.');
+                    showToast('Signed out of campus session.');
                   }}
-                  className="text-xs text-[#6C726D] hover:text-[#C24136]"
+                  className="text-xs bg-[#FAF9F5] border border-[#EDEAE2] hover:bg-[#FCEAE6] hover:text-[#C24136] hover:border-[#F5D5CE] text-[#6C726D] px-3 py-1.5 rounded-full transition-colors font-medium"
                 >
                   Logout
                 </button>
@@ -1491,37 +1498,16 @@ function App() {
       )}
 
       {/* =====================================================================
-          SIGN IN MODAL
+          CAMPUS AUTHENTICATION MODAL (GLA Institutional @gla.ac.in Verified Login)
           ===================================================================== */}
-      {showSignInModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-7 border border-[#EDEAE2] shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-[#F0EDE6] pb-3">
-              <h3 className="font-serif font-bold text-xl text-[#1A1D1B]">Campus Sign In</h3>
-              <button onClick={() => setShowSignInModal(false)} className="text-[#6C726D]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-[#6C726D]">
-              Sign in with your official GLA University institutional account (@gla.ac.in).
-            </p>
-
-            <button
-              onClick={() => {
-                const user = { name: 'Vemula Gopi Chand', email: 'gopichand.vemula_cs21@gla.ac.in', role: 'Student' };
-                setCurrentUser(user);
-                localStorage.setItem('findly_user', JSON.stringify(user));
-                setShowSignInModal(false);
-                showToast('Signed in as Vemula Gopi Chand (@gla.ac.in)');
-              }}
-              className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold py-3 rounded-xl transition-colors"
-            >
-              One-Click Student Demo Sign In
-            </button>
-          </div>
-        </div>
-      )}
+      <AuthModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+        showToast={showToast}
+      />
 
       {/* =====================================================================
           FOOTER (Exact replica of Image 2 & 3)
@@ -1553,6 +1539,14 @@ function App() {
               <li>
                 <button onClick={() => setActiveTab('analytics')} className="hover:text-[#1A1D1B] transition-colors">
                   Data visuals
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setShowSignInModal(true)}
+                  className="hover:text-[#1A1D1B] transition-colors text-[#2E5F46] font-medium"
+                >
+                  Campus Sign In (@gla.ac.in)
                 </button>
               </li>
             </ul>

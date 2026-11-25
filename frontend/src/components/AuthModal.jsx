@@ -70,22 +70,37 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast }
       return;
     }
 
-    // Check stored user or auto-login with valid GLA credentials
     const cleanEmail = signInEmail.trim().toLowerCase();
-    const displayName = cleanEmail.includes('.')
+
+    // Check against registered users in localStorage
+    const registeredUsers = JSON.parse(localStorage.getItem('findly_registered_users') || '[]');
+    const registeredMatch = registeredUsers.find((u) => u.email === cleanEmail);
+
+    if (registeredMatch && registeredMatch.password) {
+      if (registeredMatch.password !== signInPassword) {
+        setErrorMessage('Authentication failed: Incorrect password for this institutional account.');
+        return;
+      }
+    }
+
+    const displayName = registeredMatch ? registeredMatch.name : (cleanEmail.includes('.')
       ? cleanEmail.split('@')[0].split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-      : cleanEmail.split('@')[0].toUpperCase();
+      : cleanEmail.split('@')[0].toUpperCase());
 
     const userObj = {
       name: cleanEmail.includes('gopichand') ? 'Vemula Gopi Chand' : displayName,
       email: cleanEmail,
-      role: cleanEmail.includes('proctor') ? 'Proctor Office Operator' : 'Student',
-      rollNo: cleanEmail.includes('cs21') ? '2215001234' : 'GLA-STU-8821',
-      dept: 'BTech CSE (AI & ML)',
+      role: cleanEmail.includes('proctor') ? 'Proctor Office Operator' : (registeredMatch?.role || 'Student'),
+      rollNo: registeredMatch?.rollNo || (cleanEmail.includes('cs21') ? '2215001234' : 'GLA-STU-8821'),
+      dept: registeredMatch?.dept || 'BTech CSE (AI & ML)',
     };
 
     localStorage.setItem('findly_user', JSON.stringify(userObj));
     setSuccessMessage(`Welcome back, ${userObj.name}! Authenticating institutional session...`);
+
+    // Clear input fields completely so details do not linger
+    setSignInEmail('');
+    setSignInPassword('');
 
     setTimeout(() => {
       onLoginSuccess(userObj);
@@ -94,7 +109,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast }
     }, 600);
   };
 
-  // Handle Registration Submit
+  // Handle Registration Submit (Redirects to Sign In instead of auto-login)
   const handleRegister = (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -135,19 +150,31 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast }
     const newUser = {
       name: regName.trim(),
       email: cleanEmail,
+      password: regPassword, // Stored for verification upon login
       role: 'Student',
       rollNo: regRoll.trim(),
       dept: regDept,
     };
 
-    localStorage.setItem('findly_user', JSON.stringify(newUser));
-    setSuccessMessage(`Account created for ${newUser.name}! Redirecting to campus dashboard...`);
+    // Save user to registered campus registry
+    const existingUsers = JSON.parse(localStorage.getItem('findly_registered_users') || '[]');
+    const updatedUsers = existingUsers.filter((u) => u.email !== cleanEmail);
+    updatedUsers.push(newUser);
+    localStorage.setItem('findly_registered_users', JSON.stringify(updatedUsers));
 
-    setTimeout(() => {
-      onLoginSuccess(newUser);
-      onClose();
-      showToast(`Account registered and verified for ${newUser.name} (@gla.ac.in)`);
-    }, 700);
+    // Clear registration fields completely so details vanish
+    setRegName('');
+    setRegRoll('');
+    setRegEmail('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+
+    // Switch to Sign In tab so student must sign in with credentials
+    setMode('signin');
+    setSignInEmail(cleanEmail);
+    setSignInPassword('');
+    setSuccessMessage(`Registration successful for ${newUser.name}! Please enter your password to sign in.`);
+    showToast(`Account registered! Please sign in with your password.`);
   };
 
   // Quick Demo Autofills for Viva / Examination Demonstration

@@ -274,17 +274,18 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Report Form State (Matching Image 3)
-  const [reportType, setReportType] = useState('Lost'); // 'Lost' | 'Found'
-  const [reportForm, setReportForm] = useState({
-    itemName: 'Black backpack',
+  // Report Form Clean Initial State
+  const EMPTY_REPORT_FORM = {
+    itemName: '',
     category: 'Bags',
-    color: 'Black',
-    brand: 'Unknown',
-    location: 'Library, Block 3',
-    date: '2026-11-20',
-    description: 'Marks, stickers, contents',
-  });
+    color: '',
+    brand: '',
+    location: '',
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+  };
+  const [reportType, setReportType] = useState('Lost'); // 'Lost' | 'Found'
+  const [reportForm, setReportForm] = useState(EMPTY_REPORT_FORM);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [uploadedPhotoPreview, setUploadedPhotoPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -427,6 +428,11 @@ function App() {
 
     setItems((prev) => [newItem, ...prev]);
     setIsSubmitting(false);
+
+    // Reset report form and uploaded photo state so fields vanish after submission
+    setReportForm(EMPTY_REPORT_FORM);
+    setUploadedPhoto(null);
+    setUploadedPhotoPreview(null);
 
     showToast(`Report ${newId} logged successfully. Status: Pending.`);
     setActiveTab('browse');
@@ -1080,9 +1086,10 @@ function App() {
                         <input
                           type="text"
                           required
+                          placeholder="e.g., Black backpack"
                           value={reportForm.itemName}
                           onChange={(e) => setReportForm({ ...reportForm, itemName: e.target.value })}
-                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
                         />
                       </div>
                       <div>
@@ -1108,18 +1115,20 @@ function App() {
                         <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Color</label>
                         <input
                           type="text"
+                          placeholder="e.g., Black, Silver, Navy"
                           value={reportForm.color}
                           onChange={(e) => setReportForm({ ...reportForm, color: e.target.value })}
-                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
                         />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Brand (optional)</label>
                         <input
                           type="text"
+                          placeholder="e.g., Casio, Nike, Apple"
                           value={reportForm.brand}
                           onChange={(e) => setReportForm({ ...reportForm, brand: e.target.value })}
-                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
                         />
                       </div>
                     </div>
@@ -1133,16 +1142,17 @@ function App() {
                         <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Location</label>
                         <input
                           type="text"
+                          required
+                          placeholder="e.g., Library, Block 3"
                           value={reportForm.location}
                           onChange={(e) => setReportForm({ ...reportForm, location: e.target.value })}
-                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                          className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
                         />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Date</label>
                         <input
-                          type="text"
-                          placeholder="DD / MM / YYYY"
+                          type="date"
                           value={reportForm.date}
                           onChange={(e) => setReportForm({ ...reportForm, date: e.target.value })}
                           className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
@@ -1154,9 +1164,10 @@ function App() {
                       <label className="block text-xs font-medium text-[#4A4E4B] mb-1.5">Description</label>
                       <textarea
                         rows={3}
+                        placeholder="Marks, stickers, contents, or distinguishing features..."
                         value={reportForm.description}
                         onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
-                        className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none resize-none"
+                        className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none resize-none"
                       />
                       <span className="text-xs text-[#6C726D] mt-1 block">Specific details improve the estimate.</span>
                     </div>
@@ -1212,7 +1223,7 @@ function App() {
                     )}
                   </div>
 
-                  {/* Bottom Action Buttons (Continue & Save draft) */}
+                  {/* Bottom Action Buttons (Continue, Clear form & Save draft) */}
                   <div className="flex items-center gap-3 pt-2">
                     <button
                       type="submit"
@@ -1220,6 +1231,18 @@ function App() {
                       className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-7 py-3 rounded-xl transition-colors shadow-sm"
                     >
                       {isSubmitting ? 'Submitting...' : 'Continue'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportForm(EMPTY_REPORT_FORM);
+                        setUploadedPhoto(null);
+                        setUploadedPhotoPreview(null);
+                        showToast('Form cleared.');
+                      }}
+                      className="bg-white border border-[#EDEAE2] hover:bg-[#FAF9F5] hover:text-[#C24136] text-[#6C726D] text-sm font-medium px-5 py-3 rounded-xl transition-colors"
+                    >
+                      Clear form
                     </button>
                     <button
                       type="button"

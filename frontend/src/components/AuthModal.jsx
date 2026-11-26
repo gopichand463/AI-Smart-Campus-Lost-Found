@@ -22,11 +22,20 @@ export function validateGlaEmail(email) {
   return { valid: true, message: 'Valid GLA University institutional account.' };
 }
 
-export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast }) {
-  const [mode, setMode] = useState('signin'); // 'signin' | 'register'
+export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, initialMode = 'signin' }) {
+  const [mode, setMode] = useState(initialMode); // 'signin' | 'register'
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Synchronize initialMode whenever modal opens or mode changes
+  React.useEffect(() => {
+    if (isOpen && initialMode) {
+      setMode(initialMode);
+      setErrorMessage('');
+      setSuccessMessage('');
+    }
+  }, [isOpen, initialMode]);
 
   // Sign In Form State
   const [signInEmail, setSignInEmail] = useState('');

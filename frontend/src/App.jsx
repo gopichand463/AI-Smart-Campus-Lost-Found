@@ -463,14 +463,48 @@ function App() {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Normalize items: assign charger vector and pastel styling to any charger/adapter entries
+          // Normalize items: assign proper vector and pastel styling, and clean out expired blob URLs
           return parsed.map((item) => {
             const t = (item.title || '').toLowerCase();
             const d = (item.description || '').toLowerCase();
-            if ((t.includes('charger') || t.includes('adapter') || d.includes('charger')) && item.iconType !== 'charger') {
-              return { ...item, iconType: 'charger', thumbBg: '#E5E8DF' };
+            let icon = item.iconType;
+            let bg = item.thumbBg;
+
+            if (t.includes('charger') || t.includes('adapter') || d.includes('charger')) {
+              icon = 'charger';
+              bg = '#E5E8DF';
+            } else if (t.includes('bottle') || d.includes('bottle') || t.includes('flask')) {
+              icon = 'bottle';
+              bg = '#E1EFE6';
+            } else if (t.includes('phone') || d.includes('phone') || t.includes('mobile')) {
+              icon = 'phone-black';
+              bg = '#FCE3D2';
+            } else if (t.includes('bag') || t.includes('backpack')) {
+              icon = 'backpack';
+              bg = '#D5E8DB';
+            } else if (t.includes('card') || t.includes('id') || d.includes('card')) {
+              icon = 'idcard';
+              bg = '#D8ECE0';
+            } else if (t.includes('notebook') || t.includes('book') || d.includes('book')) {
+              icon = 'notebook';
+              bg = '#FAD4D8';
+            } else if (t.includes('earbud') || t.includes('airpod')) {
+              icon = 'earbuds';
+              bg = '#E5E8DF';
             }
-            return item;
+
+            // Remove dead/expired blob: URLs so broken image icons never appear
+            let photo = item.userUploadedPhoto;
+            if (photo && typeof photo === 'string' && (photo.startsWith('blob:') || photo.length < 15)) {
+              photo = null;
+            }
+
+            return {
+              ...item,
+              iconType: icon || 'backpack',
+              thumbBg: bg || '#D5E8DB',
+              userUploadedPhoto: photo,
+            };
           });
         }
       } catch (e) {
@@ -479,6 +513,9 @@ function App() {
     }
     return INITIAL_ITEMS;
   });
+
+  // Track failed/broken images to dynamically fall back to vector illustrations
+  const [failedImageIds, setFailedImageIds] = useState(new Set());
 
   // Browse Items Filter States (Image 2)
   const [browseSearch, setBrowseSearch] = useState('');
@@ -496,6 +533,7 @@ function App() {
   // Active Modals & Claim States
   const [selectedItemModal, setSelectedItemModal] = useState(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('signin'); // 'signin' | 'register'
   const [activeClaimModal, setActiveClaimModal] = useState(null);
   const [claimsFilter, setClaimsFilter] = useState('all'); // 'all' | 'my'
 
@@ -872,9 +910,12 @@ function App() {
     return dynamicMatches;
   }, [claimsFilter, dynamicMatches, userDirectMatches]);
 
-  // Thumbnail renderer (Flat Vector Graphic on Pastel Background)
+  // Thumbnail renderer (Flat Vector Graphic on Pastel Background with fail-safe vector fallback)
   const renderItemThumbnail = (item, size = 'sm') => {
     const isLarge = size === 'lg';
+    const isBroken = failedImageIds.has(item.id);
+    const hasValidPhoto = item.userUploadedPhoto && typeof item.userUploadedPhoto === 'string' && !item.userUploadedPhoto.startsWith('blob:') && !isBroken;
+
     return (
       <div
         className={`${
@@ -882,10 +923,13 @@ function App() {
         } flex items-center justify-center transition-transform`}
         style={{ backgroundColor: item.thumbBg || '#D5E8DB' }}
       >
-        {item.userUploadedPhoto ? (
+        {hasValidPhoto ? (
           <img
             src={item.userUploadedPhoto}
             alt={item.title}
+            onError={() => {
+              setFailedImageIds((prev) => new Set(prev).add(item.id));
+            }}
             className="w-full h-full object-cover rounded-lg"
           />
         ) : (
@@ -949,7 +993,14 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
           {/* Left Brand: Search Icon + Findly */}
           <button
-            onClick={() => setActiveTab('home')}
+            onClick={() => {
+              if (currentUser) {
+                setActiveTab('home');
+              } else {
+                setAuthModalMode('signin');
+                setShowSignInModal(true);
+              }
+            }}
             className="flex items-center gap-2.5 text-left group"
           >
             <div className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-[#1A1D1B]">
@@ -960,75 +1011,77 @@ function App() {
             </span>
           </button>
 
-          {/* Center Navigation Links (with active red underline #C24136) */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#4A4E4B]">
-            <button
-              onClick={() => setActiveTab('home')}
-              className={`pb-1 transition-colors relative ${
-                activeTab === 'home' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
-              }`}
-            >
-              Home
-              {activeTab === 'home' && (
-                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
-              )}
-            </button>
+          {/* Center Navigation Links: ONLY visible when signed in */}
+          {currentUser && (
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#4A4E4B]">
+              <button
+                onClick={() => setActiveTab('home')}
+                className={`pb-1 transition-colors relative ${
+                  activeTab === 'home' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+                }`}
+              >
+                Home
+                {activeTab === 'home' && (
+                  <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab('browse')}
-              className={`pb-1 transition-colors relative ${
-                activeTab === 'browse' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
-              }`}
-            >
-              Browse items
-              {activeTab === 'browse' && (
-                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
-              )}
-            </button>
+              <button
+                onClick={() => setActiveTab('browse')}
+                className={`pb-1 transition-colors relative ${
+                  activeTab === 'browse' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+                }`}
+              >
+                Browse items
+                {activeTab === 'browse' && (
+                  <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab('report')}
-              className={`pb-1 transition-colors relative ${
-                activeTab === 'report' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
-              }`}
-            >
-              Report an item
-              {activeTab === 'report' && (
-                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
-              )}
-            </button>
+              <button
+                onClick={() => setActiveTab('report')}
+                className={`pb-1 transition-colors relative ${
+                  activeTab === 'report' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+                }`}
+              >
+                Report an item
+                {activeTab === 'report' && (
+                  <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`pb-1 transition-colors relative ${
-                activeTab === 'analytics' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
-              }`}
-            >
-              Data visuals
-              {activeTab === 'analytics' && (
-                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
-              )}
-            </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`pb-1 transition-colors relative ${
+                  activeTab === 'analytics' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+                }`}
+              >
+                Data visuals
+                {activeTab === 'analytics' && (
+                  <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab('claims')}
-              className={`pb-1 transition-colors relative flex items-center gap-1.5 ${
-                activeTab === 'claims' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
-              }`}
-            >
-              <span>My claims</span>
-              {userDirectMatches.length > 0 && (
-                <span className="bg-[#C24136] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                  {userDirectMatches.length}
-                </span>
-              )}
-              {activeTab === 'claims' && (
-                <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
-              )}
-            </button>
-          </nav>
+              <button
+                onClick={() => setActiveTab('claims')}
+                className={`pb-1 transition-colors relative flex items-center gap-1.5 ${
+                  activeTab === 'claims' ? 'text-[#1A1D1B] font-semibold' : 'hover:text-[#1A1D1B]'
+                }`}
+              >
+                <span>My claims</span>
+                {userDirectMatches.length > 0 && (
+                  <span className="bg-[#C24136] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                    {userDirectMatches.length}
+                  </span>
+                )}
+                {activeTab === 'claims' && (
+                  <span className="absolute bottom-[-16px] left-0 right-0 h-[2px] bg-[#C24136]" />
+                )}
+              </button>
+            </nav>
+          )}
 
-          {/* Right Action: Sign In Button */}
+          {/* Right Action: Profile or Institutional Sign in / Register */}
           <div className="flex items-center gap-3">
             {currentUser ? (
               <div className="flex items-center gap-3">
@@ -1045,6 +1098,7 @@ function App() {
                   onClick={() => {
                     setCurrentUser(null);
                     localStorage.removeItem('findly_user');
+                    setActiveTab('home');
                     showToast('Signed out of campus session.');
                   }}
                   className="text-xs bg-[#FAF9F5] border border-[#EDEAE2] hover:bg-[#FCEAE6] hover:text-[#C24136] hover:border-[#F5D5CE] text-[#6C726D] px-3 py-1.5 rounded-full transition-colors font-medium"
@@ -1053,12 +1107,26 @@ function App() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setShowSignInModal(true)}
-                className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-6 py-2 rounded-full transition-all shadow-sm"
-              >
-                Sign in
-              </button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => {
+                    setAuthModalMode('register');
+                    setShowSignInModal(true);
+                  }}
+                  className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] hover:bg-[#D5E8DB] px-3 sm:px-4 py-2 rounded-full transition-colors"
+                >
+                  Register (@gla.ac.in)
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthModalMode('signin');
+                    setShowSignInModal(true);
+                  }}
+                  className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs sm:text-sm font-medium px-5 sm:px-6 py-2 rounded-full transition-all shadow-sm"
+                >
+                  Sign in
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1076,13 +1144,158 @@ function App() {
       )}
 
       {/* =====================================================================
-          MAIN BODY ROUTING
+          MAIN BODY ROUTING (Gated by Institutional Authentication)
           ===================================================================== */}
       <main className="flex-1 relative">
-        {/* ===================================================================
-            VIEW 1: HOME PAGE (Exact replica of Image 1 - Clean Flat Vectors)
-            =================================================================== */}
-        {activeTab === 'home' && (
+        {!currentUser ? (
+          /* ===================================================================
+              INSTITUTIONAL ACCESS GATEWAY
+              Restricts campus items, reporting, and data visuals before sign-in
+              =================================================================== */
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-16 space-y-16 relative">
+            {/* Background Faint Watermarks matching Findly Aesthetic */}
+            <div className="absolute left-[-20px] bottom-[-40px] w-64 h-96 opacity-[0.05] pointer-events-none -rotate-12">
+              <PhoneVector variant="black" />
+            </div>
+            <div className="absolute right-[-30px] top-[-30px] w-80 h-96 opacity-[0.05] pointer-events-none">
+              <BackpackVector />
+            </div>
+            <div className="absolute right-24 bottom-[-60px] w-60 h-80 opacity-[0.04] pointer-events-none rotate-6">
+              <NotebookVector />
+            </div>
+
+            {/* Hero Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+              <div className="lg:col-span-7 space-y-7">
+                {/* Institutional Badge */}
+                <div className="inline-flex items-center gap-2 bg-[#E1EFE6] text-[#2E5F46] text-xs font-semibold px-3.5 py-1.5 rounded-full">
+                  <ShieldCheck className="w-4 h-4 text-[#2E5F46]" />
+                  <span>GLA University · Authorized Student &amp; Staff Access Only</span>
+                </div>
+
+                {/* Hero Headline */}
+                <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-[#1A1D1B] leading-[1.12]">
+                  Lost something on<br />
+                  campus? Sign in to<br />
+                  access Findly.
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-[#6C726D] text-base sm:text-lg max-w-lg leading-relaxed">
+                  To protect student privacy and verify ownership of recovered property, browsing campus items, reporting lost belongings, accessing data visuals, and claiming items requires an authorized <span className="font-semibold text-[#1A1D1B]">@gla.ac.in</span> institutional account.
+                </p>
+
+                {/* Call to action buttons */}
+                <div className="flex flex-wrap items-center gap-4 pt-2">
+                  <button
+                    onClick={() => {
+                      setAuthModalMode('signin');
+                      setShowSignInModal(true);
+                    }}
+                    className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-semibold px-8 py-3.5 rounded-full transition-all shadow-md flex items-center gap-2"
+                  >
+                    <span>Sign in with @gla.ac.in</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAuthModalMode('register');
+                      setShowSignInModal(true);
+                    }}
+                    className="bg-white border border-[#EDEAE2] hover:bg-[#F6F4EE] hover:border-[#1E3A2F] text-[#1A1D1B] text-sm font-semibold px-7 py-3.5 rounded-full transition-all shadow-xs"
+                  >
+                    Register new student account
+                  </button>
+                </div>
+
+                <div className="pt-3 text-xs text-[#6C726D] flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+                  <span>Institutional single sign-on &amp; secure student verification enabled</span>
+                </div>
+              </div>
+
+              {/* Right Column: Visual Teaser Mockup Cards (Sage Backpack & Peach Smartphone vectors) */}
+              <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+                <div className="relative w-full max-w-sm sm:max-w-md h-[400px]">
+                  {/* Card 1: Sage backpack (Green pastel) */}
+                  <div className="absolute top-2 left-4 sm:left-2 w-52 sm:w-60 bg-white rounded-3xl p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] -rotate-3 transition-transform hover:rotate-0">
+                    <div className="w-full h-32 sm:h-36 rounded-2xl bg-[#D5E8DB] flex items-center justify-center p-3">
+                      <BackpackVector />
+                    </div>
+                    <div className="mt-3.5 space-y-1">
+                      <h4 className="font-semibold text-sm text-[#1A1D1B]">Sage backpack</h4>
+                      <span className="inline-block text-[11px] font-medium text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded-full">
+                        Found in Library
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Peach smartphone (Peach pastel) */}
+                  <div className="absolute top-24 right-2 sm:right-4 w-52 sm:w-60 bg-white rounded-3xl p-4 sm:p-5 shadow-[0_16px_40px_rgba(0,0,0,0.08)] border border-[#EDEAE2] rotate-3 transition-transform hover:rotate-0 z-20">
+                    <div className="w-full h-32 sm:h-36 rounded-2xl bg-[#FCE3D2] flex items-center justify-center p-3">
+                      <PhoneVector variant="peach" />
+                    </div>
+                    <div className="mt-3.5 space-y-1">
+                      <h4 className="font-semibold text-sm text-[#1A1D1B]">Peach smartphone</h4>
+                      <span className="inline-block text-[11px] font-medium text-[#C24136] bg-[#FCEAE6] px-2 py-0.5 rounded-full">
+                        Reported Lost
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Floating Prediction Pill */}
+                  <div className="absolute bottom-8 left-8 sm:left-12 z-30 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-[0_12px_30px_rgba(0,0,0,0.08)] border border-[#EDEAE2] max-w-[210px] space-y-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#6C726D]">
+                      AI Match Engine
+                    </span>
+                    <p className="text-xs font-semibold text-[#1A1D1B]">Institutional Security Gate</p>
+                    <div className="w-full bg-[#EDEAE2] h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-[#2E5F46] h-full w-[85%] rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Three Institutional Security Pillars */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 relative z-10">
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#E1EFE6] flex items-center justify-center text-[#2E5F46]">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-base text-[#1A1D1B]">Protected Campus Directory</h3>
+                <p className="text-xs sm:text-sm text-[#6C726D] leading-relaxed">
+                  Only enrolled GLA University students and staff with verified <span className="font-mono text-[#2E5F46]">@gla.ac.in</span> credentials can view listings and photos to prevent unauthorized claims.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#FCE3D2] flex items-center justify-center text-[#D97706]">
+                  <Sparkles className="w-5 h-5 text-[#C24136]" />
+                </div>
+                <h3 className="font-semibold text-base text-[#1A1D1B]">AI Similarity Engine</h3>
+                <p className="text-xs sm:text-sm text-[#6C726D] leading-relaxed">
+                  High-precision MobileNetV2 visual embedding &amp; TF-IDF NLP semantic matching automatically alert matching owners when items are reported.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#D8ECE0] flex items-center justify-center text-[#1E3A2F]">
+                  <Clock className="w-5 h-5 text-[#1E3A2F]" />
+                </div>
+                <h3 className="font-semibold text-base text-[#1A1D1B]">Official Proctor Custody</h3>
+                <p className="text-xs sm:text-sm text-[#6C726D] leading-relaxed">
+                  Physical custody handovers are verified at Central Proctor Desk, Academic Block AB-1 Room 104 with student identity validation.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* ===================================================================
+                VIEW 1: HOME PAGE (Exact replica of Image 1 - Clean Flat Vectors)
+                =================================================================== */}
+            {activeTab === 'home' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 sm:py-14 space-y-16 relative">
             {/* Background Faint Watermarks matching Image 1 */}
             <div className="absolute left-[-20px] bottom-[-40px] w-64 h-96 opacity-[0.06] pointer-events-none -rotate-12">
@@ -1654,7 +1867,11 @@ function App() {
                             const file = e.target.files[0];
                             if (file) {
                               setUploadedPhoto(file);
-                              setUploadedPhotoPreview(URL.createObjectURL(file));
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setUploadedPhotoPreview(reader.result);
+                              };
+                              reader.readAsDataURL(file);
                             }
                           }}
                         />
@@ -1995,15 +2212,17 @@ function App() {
           </div>
         )}
 
-        {/* ===================================================================
-            VIEW 5: DATA VISUALS & ANALYTICS (Graphs, Pie Charts, ML Metrics)
-            =================================================================== */}
-        {activeTab === 'analytics' && (
-          <DataVisualsView
-            onNavigateReport={() => setActiveTab('report')}
-            onNavigateBrowse={() => setActiveTab('browse')}
-            showToast={showToast}
-          />
+            {/* ===================================================================
+                VIEW 5: DATA VISUALS & ANALYTICS (Graphs, Pie Charts, ML Metrics)
+                =================================================================== */}
+            {activeTab === 'analytics' && (
+              <DataVisualsView
+                onNavigateReport={() => setActiveTab('report')}
+                onNavigateBrowse={() => setActiveTab('browse')}
+                showToast={showToast}
+              />
+            )}
+          </>
         )}
       </main>
 
@@ -2191,6 +2410,7 @@ function App() {
           ===================================================================== */}
       <AuthModal
         isOpen={showSignInModal}
+        initialMode={authModalMode}
         onClose={() => setShowSignInModal(false)}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
@@ -2216,23 +2436,59 @@ function App() {
             <h4 className="font-semibold text-xs text-[#1A1D1B] uppercase tracking-wider">Use</h4>
             <ul className="space-y-1.5">
               <li>
-                <button onClick={() => setActiveTab('browse')} className="hover:text-[#1A1D1B] transition-colors">
+                <button
+                  onClick={() => {
+                    if (!currentUser) {
+                      setAuthModalMode('signin');
+                      setShowSignInModal(true);
+                      showToast('Please sign in with your institutional account (@gla.ac.in) first.');
+                    } else {
+                      setActiveTab('browse');
+                    }
+                  }}
+                  className="hover:text-[#1A1D1B] transition-colors"
+                >
                   Browse items
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('report')} className="hover:text-[#1A1D1B] transition-colors">
+                <button
+                  onClick={() => {
+                    if (!currentUser) {
+                      setAuthModalMode('signin');
+                      setShowSignInModal(true);
+                      showToast('Please sign in with your institutional account (@gla.ac.in) first.');
+                    } else {
+                      setActiveTab('report');
+                    }
+                  }}
+                  className="hover:text-[#1A1D1B] transition-colors"
+                >
                   Report an item
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('analytics')} className="hover:text-[#1A1D1B] transition-colors">
+                <button
+                  onClick={() => {
+                    if (!currentUser) {
+                      setAuthModalMode('signin');
+                      setShowSignInModal(true);
+                      showToast('Please sign in with your institutional account (@gla.ac.in) first.');
+                    } else {
+                      setActiveTab('analytics');
+                    }
+                  }}
+                  className="hover:text-[#1A1D1B] transition-colors"
+                >
                   Data visuals
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => setShowSignInModal(true)}
+                  onClick={() => {
+                    setAuthModalMode('signin');
+                    setShowSignInModal(true);
+                  }}
                   className="hover:text-[#1A1D1B] transition-colors text-[#2E5F46] font-medium"
                 >
                   Campus Sign In (@gla.ac.in)

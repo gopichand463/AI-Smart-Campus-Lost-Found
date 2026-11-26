@@ -622,6 +622,26 @@ function App() {
     return INITIAL_ITEMS.map((it) => ({ ...it, ...computeRecoveryPrediction(it) }));
   });
 
+  // Track failed/broken images to dynamically fall back to vector illustrations
+  const [failedImageIds, setFailedImageIds] = useState(new Set());
+
+  // Report Form Clean Initial State
+  const EMPTY_REPORT_FORM = {
+    itemName: '',
+    category: 'Bags',
+    color: '',
+    brand: '',
+    location: '',
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+  };
+  const [reportType, setReportType] = useState('Lost'); // 'Lost' | 'Found'
+  const [reportForm, setReportForm] = useState(EMPTY_REPORT_FORM);
+  const [uploadedPhoto, setUploadedPhoto] = useState(null);
+  const [uploadedPhotoPreview, setUploadedPhotoPreview] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+
   // Live AI Prediction state for item report creation
   const [serverPrediction, setServerPrediction] = useState(null);
   const localPrediction = useMemo(() => computeRecoveryPrediction(reportForm), [reportForm]);
@@ -665,9 +685,6 @@ function App() {
     };
   }, [reportForm.itemName, reportForm.category, reportForm.location, reportForm.brand, reportForm.description]);
 
-  // Track failed/broken images to dynamically fall back to vector illustrations
-  const [failedImageIds, setFailedImageIds] = useState(new Set());
-
   // Browse Items Filter States (Image 2)
   const [browseSearch, setBrowseSearch] = useState('');
   const [typeFilters, setTypeFilters] = useState({ Lost: false, Found: false });
@@ -692,23 +709,6 @@ function App() {
     const saved = localStorage.getItem('findly_user');
     return saved ? JSON.parse(saved) : null;
   });
-
-  // Report Form Clean Initial State
-  const EMPTY_REPORT_FORM = {
-    itemName: '',
-    category: 'Bags',
-    color: '',
-    brand: '',
-    location: '',
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-  };
-  const [reportType, setReportType] = useState('Lost'); // 'Lost' | 'Found'
-  const [reportForm, setReportForm] = useState(EMPTY_REPORT_FORM);
-  const [uploadedPhoto, setUploadedPhoto] = useState(null);
-  const [uploadedPhotoPreview, setUploadedPhotoPreview] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
   // Synchronize localStorage
   useEffect(() => {

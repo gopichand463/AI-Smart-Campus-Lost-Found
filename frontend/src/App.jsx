@@ -1298,7 +1298,7 @@ function App() {
               INSTITUTIONAL ACCESS GATEWAY
               Restricts campus items, reporting, and data visuals before sign-in
               =================================================================== */
-          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-16 space-y-16 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 pb-12 sm:pt-6 sm:pb-16 space-y-12 relative">
             {/* Background Faint Watermarks matching Findly Aesthetic */}
             <div className="absolute left-[-20px] bottom-[-40px] w-64 h-96 opacity-[0.05] pointer-events-none -rotate-12">
               <PhoneVector variant="black" />
@@ -1311,23 +1311,23 @@ function App() {
             </div>
 
             {/* Hero Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
-              <div className="lg:col-span-7 space-y-7">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
+              <div className="lg:col-span-7 space-y-6">
                 {/* Institutional Badge */}
-                <div className="inline-flex items-center gap-2 bg-[#E1EFE6] text-[#2E5F46] text-xs font-semibold px-3.5 py-1.5 rounded-full">
+                <div className="inline-flex items-center gap-2 bg-[#E1EFE6] border border-[#CDE5D5] text-[#2E5F46] text-xs font-semibold px-4 py-1.5 rounded-full shadow-2xs">
                   <ShieldCheck className="w-4 h-4 text-[#2E5F46]" />
                   <span>GLA University · Authorized Student &amp; Staff Access Only</span>
                 </div>
 
                 {/* Hero Headline */}
-                <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-[#1A1D1B] leading-[1.12]">
+                <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-[#1A1D1B] leading-[1.08]">
                   Lost something on<br />
                   campus? Sign in to<br />
                   access Findly.
                 </h1>
 
                 {/* Subtitle */}
-                <p className="text-[#6C726D] text-base sm:text-lg max-w-lg leading-relaxed">
+                <p className="text-[#6C726D] text-base sm:text-lg lg:text-xl max-w-xl leading-relaxed">
                   To protect student privacy and verify ownership of recovered property, browsing campus items, reporting lost belongings, accessing data visuals, and claiming items requires an authorized <span className="font-semibold text-[#1A1D1B]">@gla.ac.in</span> institutional account.
                 </p>
 
@@ -1442,7 +1442,7 @@ function App() {
                 VIEW 1: HOME PAGE (Exact replica of Image 1 - Clean Flat Vectors)
                 =================================================================== */}
             {activeTab === 'home' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 sm:py-14 space-y-16 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 pb-12 sm:pt-6 sm:pb-16 space-y-12 relative">
             {/* Background Faint Watermarks matching Image 1 */}
             <div className="absolute left-[-20px] bottom-[-40px] w-64 h-96 opacity-[0.06] pointer-events-none -rotate-12">
               <PhoneVector variant="black" />
@@ -1455,24 +1455,26 @@ function App() {
             </div>
 
             {/* Hero Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
               {/* Left Column: Heading, Subtitle, Search bar, and Pills */}
-              <div className="lg:col-span-7 space-y-7">
-                {/* Green Campus Badge */}
-                <span className="inline-block bg-[#E1EFE6] text-[#2E5F46] text-xs font-medium px-3 py-1 rounded-full">
-                  GLA University campus
-                </span>
+              <div className="lg:col-span-7 space-y-6">
+                {/* Enhanced Campus Status Badge */}
+                <div className="inline-flex items-center gap-2 bg-[#E1EFE6] border border-[#CDE5D5] text-[#2E5F46] text-xs font-semibold px-4 py-1.5 rounded-full shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+                  <span>GLA University Campus Lost &amp; Found Portal</span>
+                  <span className="text-[#6C726D] text-[11px] font-normal border-l border-[#C2DEC9] pl-2 hidden sm:inline">AI-Powered Recovery</span>
+                </div>
 
-                {/* Hero Headline */}
-                <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-[#1A1D1B] leading-[1.12]">
+                {/* Hero Headline - Expanded, Bold & Impactful */}
+                <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-[#1A1D1B] leading-[1.08]">
                   Lost something on<br />
                   campus? Let's<br />
                   bring it back.
                 </h1>
 
                 {/* Subtitle */}
-                <p className="text-[#6C726D] text-base sm:text-lg max-w-lg leading-relaxed">
-                  Report a lost or found item in under a minute and follow its status until it is back with its owner.
+                <p className="text-[#6C726D] text-base sm:text-lg lg:text-xl max-w-xl leading-relaxed">
+                  Report a lost or found item in under a minute and follow its recovery status until it is safely back with its owner.
                 </p>
 
                 {/* Search Bar Input (White card with Search pill button) */}

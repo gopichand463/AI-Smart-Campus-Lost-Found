@@ -1737,16 +1737,16 @@ function App() {
                     paginatedItems.map((item) => (
                       <div
                         key={item.id}
-                        className="bg-white rounded-xl p-4 border border-[#EDEAE2] shadow-2xs hover:border-[#D5D2C8] transition-all flex items-center justify-between gap-4"
+                        className="bg-white rounded-xl px-4 py-3 sm:py-3.5 min-h-[96px] sm:h-[96px] border border-[#EDEAE2] shadow-2xs hover:border-[#D5D2C8] transition-all flex items-center justify-between gap-4"
                       >
                         {/* Left: Pastel Vector Thumbnail & Text Details */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
                           {renderItemThumbnail(item, 'sm')}
-                          <div>
-                            <h3 className="font-serif font-bold text-base text-[#1A1D1B]">
+                          <div className="min-w-0 flex flex-col justify-center">
+                            <h3 className="font-serif font-bold text-base text-[#1A1D1B] truncate">
                               {item.title}
                             </h3>
-                            <p className="text-xs text-[#6C726D] mt-0.5">
+                            <p className="text-xs text-[#6C726D] mt-0.5 truncate">
                               {item.location} · {item.dateText} · {item.id}
                             </p>
                             {item.reportType === 'Lost' && (

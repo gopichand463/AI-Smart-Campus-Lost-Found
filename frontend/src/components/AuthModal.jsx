@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   X, ShieldCheck, AlertCircle, CheckCircle2, Lock, Mail,
-  User, Eye, EyeOff, Building2, Sparkles, ArrowRight
+  User, Eye, EyeOff, Building2, ArrowRight
 } from 'lucide-react';
 
 export function validateGlaEmail(email) {
@@ -184,21 +184,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
     setSignInPassword('');
     setSuccessMessage(`Registration successful for ${newUser.name}! Please enter your password to sign in.`);
     showToast(`Account registered! Please sign in with your password.`);
-  };
-
-  // Quick Demo Autofills for Viva / Examination Demonstration
-  const fillStudentDemo = () => {
-    setMode('signin');
-    setSignInEmail('gopichand.vemula_cs21@gla.ac.in');
-    setSignInPassword('SmartCampus@2026');
-    setErrorMessage('');
-  };
-
-  const fillProctorDemo = () => {
-    setMode('signin');
-    setSignInEmail('proctor.office@gla.ac.in');
-    setSignInPassword('ProctorGLA@2026');
-    setErrorMessage('');
   };
 
   return (
@@ -558,46 +543,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
             </button>
           </form>
         )}
-
-        {/* Quick Demo Autofill Section for Testing / Evaluation */}
-        <div className="pt-2 border-t border-[#F0EDE6] space-y-2.5">
-          <div className="flex items-center justify-between text-xs text-[#6C726D]">
-            <span className="font-semibold text-[#1A1D1B] flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#D87A5B]" />
-              Quick Demo Logins (Viva Evaluation):
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={fillStudentDemo}
-              className="p-2.5 bg-[#FAF9F5] hover:bg-[#E1EFE6] border border-[#EDEAE2] hover:border-[#D5E8DB] rounded-xl text-left transition-colors group"
-            >
-              <div className="text-xs font-bold text-[#1A1D1B] group-hover:text-[#1E3A2F] flex items-center justify-between">
-                <span>🎓 Student Demo</span>
-                <span className="text-[10px] bg-[#D8ECE0] text-[#1E3A2F] px-1.5 py-0.2 rounded font-mono">CSE AI&amp;ML</span>
-              </div>
-              <div className="text-[11px] text-[#6C726D] font-mono mt-0.5">
-                gopichand.vemula_cs21@gla.ac.in
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={fillProctorDemo}
-              className="p-2.5 bg-[#FAF9F5] hover:bg-[#FCEAE6] border border-[#EDEAE2] hover:border-[#F5D5CE] rounded-xl text-left transition-colors group"
-            >
-              <div className="text-xs font-bold text-[#1A1D1B] group-hover:text-[#C24136] flex items-center justify-between">
-                <span>🛡️ Proctor Admin</span>
-                <span className="text-[10px] bg-[#FCEAE6] text-[#C24136] px-1.5 py-0.2 rounded font-mono">Desk 104</span>
-              </div>
-              <div className="text-[11px] text-[#6C726D] font-mono mt-0.5">
-                proctor.office@gla.ac.in
-              </div>
-            </button>
-          </div>
-        </div>
 
         {/* Security Policy Footnote */}
         <div className="text-[11px] text-[#787F79] bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] flex items-start gap-2">

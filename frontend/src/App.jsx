@@ -1764,14 +1764,6 @@ function App() {
                                 </span>
                               </div>
                             )}
-                            {item.reportType === 'Found' && (
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10.5px] font-mono font-medium text-[#386A51] bg-[#D8ECE0] px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                  <ShieldCheck className="w-3 h-3 text-[#2E5F46]" />
-                                  In Campus Custody · Central Proctor Desk (AB-1, Room 104)
-                                </span>
-                              </div>
-                            )}
                           </div>
                         </div>
 
@@ -2537,8 +2529,8 @@ function App() {
               </div>
             </div>
 
-            {/* AI Recovery Horizon for LOST items OR Official Custody Box for FOUND items */}
-            {selectedItemModal.reportType === 'Lost' ? (
+            {/* AI Recovery Horizon for LOST items ONLY */}
+            {selectedItemModal.reportType === 'Lost' && (
               <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#EDEAE2] space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[#1A1D1B] flex items-center gap-1.5">
@@ -2558,23 +2550,6 @@ function App() {
                 <p className="text-[11px] text-[#525753] leading-relaxed">
                   {selectedItemModal.historicalBenchmark || `Based on 120,000 campus records: ${selectedItemModal.confidence || 84}% of lost ${selectedItemModal.category} items reported near ${selectedItemModal.location} are recovered within 72 hours (3 days).`}
                 </p>
-              </div>
-            ) : (
-              <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D5E8DB] space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#1A1D1B] flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-[#2E5F46]" />
-                    Official Campus Custody &amp; Handover
-                  </span>
-                  <span className="font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded-full text-[10.5px]">
-                    In Physical Custody
-                  </span>
-                </div>
-                <div className="text-[11.5px] text-[#525753] space-y-1 pt-0.5 leading-relaxed">
-                  <p><strong>Physical Location:</strong> Academic Block AB-1, Room 104 (Ground Floor Proctor Desk).</p>
-                  <p><strong>Status:</strong> Item logged and securely stored awaiting student ownership claim.</p>
-                  <p className="text-[#2E5F46] font-medium pt-0.5">Campus Benchmark: 88.5% of found items are reclaimed within 72 hours of custody turn-in.</p>
-                </div>
               </div>
             )}
 

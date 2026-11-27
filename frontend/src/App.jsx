@@ -517,18 +517,9 @@ export function computeRecoveryPrediction(item = {}) {
   baseDays = Math.max(1.2, Math.min(4.5, Math.round(baseDays * 10) / 10));
   baseRate = Math.max(68.0, Math.min(96.5, Math.round(baseRate * 10) / 10));
 
-  let windowLabel = `Before 3 days`;
-  if (baseDays <= 1.6) {
-    windowLabel = `Before 2 days`;
-  } else if (baseDays <= 2.7) {
-    windowLabel = `Before 3 days`;
-  } else {
-    windowLabel = `Within 3–4 days`;
-  }
-
-  // Target recovery date
+  // Target recovery date dynamically computed from turnaround days
   const targetDateObj = new Date();
-  targetDateObj.setDate(targetDateObj.getDate() + Math.round(baseDays));
+  targetDateObj.setDate(targetDateObj.getDate() + Math.max(1, Math.round(baseDays)));
   const options = { day: 'numeric', month: 'short', year: 'numeric' };
   const targetDateStr = targetDateObj.toLocaleDateString('en-GB', options);
 
@@ -536,18 +527,18 @@ export function computeRecoveryPrediction(item = {}) {
   const displayLocation = item.location || 'GLA University campus';
 
   return {
-    window: windowLabel,
+    window: `~${baseDays} days`,
     avgDays: baseDays,
     minDays: Math.max(1, Math.round(baseDays - 1)),
     maxDays: Math.ceil(baseDays),
     targetDate: targetDateStr,
     likelihood: Math.round(baseRate),
     confidenceLevel: baseRate >= 80 ? 'High Probability' : 'Moderate Probability',
-    historicalBenchmark: `Based on 120,000 campus records: ${baseRate}% of lost ${displayCategory} reported in ${displayLocation} are recovered within 72 hours (3 days).`,
+    historicalBenchmark: `Based on historical campus records: ~${Math.round(baseRate)}% of lost ${displayCategory} reported in ${displayLocation} are recovered (historical average resolution: ~${baseDays} days).`,
     milestones: [
-      { hour: '0–24h', title: 'Custodial Sweep', desc: 'Classroom & desk sweep logged at Proctor Desk' },
-      { hour: '24–48h', title: 'AI Match Window', desc: 'MobileNetV2 visual & TF-IDF similarity pairing' },
-      { hour: '48–72h', title: 'Handover Verification', desc: 'Student handover at AB-1 Room 104' }
+      { step: 'Phase 1', title: 'Custodial Sweep', desc: 'Classroom & desk sweep logged at Proctor Desk' },
+      { step: 'Phase 2', title: 'AI Match Window', desc: 'MobileNetV2 visual & TF-IDF similarity pairing active' },
+      { step: 'Phase 3', title: 'Handover Verification', desc: 'Student claim verification at AB-1 Room 104' }
     ]
   };
 }
@@ -848,7 +839,7 @@ function App() {
       description: reportForm.description || 'Reported on campus.',
       distinguishingFeatures: reportForm.description,
       confidence: activePrediction.likelihood || 84,
-      predictedTurnaround: activePrediction.window || 'Before 3 days',
+      predictedTurnaround: `~${activePrediction.avgDays || 2.4} days`,
       avgFoundDays: activePrediction.avgDays || 2.4,
       targetDate: activePrediction.targetDate,
       historicalBenchmark: activePrediction.historicalBenchmark,
@@ -879,7 +870,7 @@ function App() {
     setUploadedPhoto(null);
     setUploadedPhotoPreview(null);
 
-    showToast(`Report ${newId} logged! AI Forecast: Expected found ${newItem.predictedTurnaround} (~${newItem.avgFoundDays}d avg turnaround).`);
+    showToast(`Report ${newId} logged! AI Forecast: Estimated turnaround ~${newItem.avgFoundDays} days.`);
     setActiveTab('browse');
   };
 
@@ -1760,7 +1751,7 @@ function App() {
                               <div className="flex items-center gap-2 mt-1">
                                 <span className="text-[10.5px] font-mono font-medium text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-[#2E5F46]" />
-                                  Expected found: {item.predictedTurnaround || computeRecoveryPrediction(item).window} (~{item.avgFoundDays || computeRecoveryPrediction(item).avgDays}d avg)
+                                  Estimated turnaround: ~{item.avgFoundDays || computeRecoveryPrediction(item).avgDays} days
                                 </span>
                               </div>
                             )}
@@ -2091,13 +2082,13 @@ function App() {
 
                     {/* Big bold prediction */}
                     <div>
-                      <div className="text-xs text-[#6C726D] font-medium">Predicted Found Window:</div>
+                      <div className="text-xs text-[#6C726D] font-medium">Estimated Recovery Turnaround:</div>
                       <h3 className="font-serif font-bold text-3xl text-[#1A1D1B] mt-0.5">
-                        {activePrediction.window}
+                        ~{activePrediction.avgDays} days
                       </h3>
                       <p className="text-xs text-[#2E5F46] font-medium mt-1 flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5" />
-                        Historical Campus Turnaround: <strong>{activePrediction.avgDays} days avg</strong>
+                        Calculated from historical campus dataset records
                       </p>
                     </div>
 
@@ -2123,12 +2114,12 @@ function App() {
 
                     {/* Historical Data Benchmark Quote */}
                     <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] text-[11px] text-[#525753] leading-relaxed">
-                      <span className="font-bold text-[#1A1D1B] block mb-0.5">120,000 Campus Records Benchmark:</span>
+                      <span className="font-bold text-[#1A1D1B] block mb-0.5">Campus Dataset Benchmark:</span>
                       {activePrediction.historicalBenchmark}
                     </div>
 
                     <p className="text-[11px] text-[#6C726D] pt-1 leading-relaxed">
-                      Forecast generated via Random Forest ML model &amp; campus turnaround velocity. You can adjust details after submitting.
+                      Forecast generated dynamically via Random Forest ML model &amp; campus turnaround velocity. You can adjust details after submitting.
                     </p>
                   </div>
                 ) : (
@@ -2156,7 +2147,7 @@ function App() {
 
                     <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] flex items-center justify-between text-xs">
                       <span className="text-[#6C726D]">Owner Reclaim Rate:</span>
-                      <strong className="text-[#2E5F46] font-bold">92.4% within 72h</strong>
+                      <strong className="text-[#2E5F46] font-bold">92.4% historical claim rate</strong>
                     </div>
 
                     <div className="space-y-1.5 pt-1">
@@ -2176,24 +2167,24 @@ function App() {
                   </div>
                 )}
 
-                {/* Card 2: 72-Hour Campus Milestones Guide (Soft Pink/Peach #FCEAE6) */}
+                {/* Card 2: Campus Recovery Protocol (Soft Pink/Peach #FCEAE6) */}
                 <div className="bg-[#FCEAE6] rounded-2xl p-6 border border-[#F5D5CE] space-y-3">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-[#C24136]" />
-                    <h4 className="font-bold text-sm text-[#1A1D1B]">72-Hour Recovery Protocol</h4>
+                    <h4 className="font-bold text-sm text-[#1A1D1B]">Campus Recovery Pipeline</h4>
                   </div>
                   <div className="space-y-2 text-xs text-[#525753] leading-relaxed">
                     <div className="flex items-start gap-2">
-                      <span className="font-mono font-bold text-[10px] bg-white/70 px-1.5 py-0.5 rounded text-[#C24136]">0–24h</span>
-                      <span><strong>Intake:</strong> Classrooms swept; belongings logged at Central Proctor Desk AB-1 Room 104.</span>
+                      <span className="font-mono font-bold text-[10px] bg-white/70 px-1.5 py-0.5 rounded text-[#C24136]">Phase 1</span>
+                      <span><strong>Intake Sweep:</strong> Classrooms swept; belongings logged at Central Proctor Desk AB-1 Room 104.</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="font-mono font-bold text-[10px] bg-white/70 px-1.5 py-0.5 rounded text-[#C24136]">24–48h</span>
-                      <span><strong>AI Pairing:</strong> MobileNetV2 &amp; TF-IDF NLP semantic matching active.</span>
+                      <span className="font-mono font-bold text-[10px] bg-white/70 px-1.5 py-0.5 rounded text-[#C24136]">Phase 2</span>
+                      <span><strong>AI Pairing:</strong> MobileNetV2 visual &amp; TF-IDF NLP semantic matching actively scans incoming reports.</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="font-mono font-bold text-[10px] bg-white/70 px-1.5 py-0.5 rounded text-[#C24136]">48–72h</span>
-                      <span><strong>Handover:</strong> Average resolution with student ID verification.</span>
+                      <span className="font-mono font-bold text-[10px] bg-white/70 px-1.5 py-0.5 rounded text-[#C24136]">Phase 3</span>
+                      <span><strong>Handover:</strong> Student ownership verification and physical claim return.</span>
                     </div>
                   </div>
                 </div>
@@ -2542,13 +2533,13 @@ function App() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-0.5">
-                  <span className="text-[#6C726D]">Estimated Found Window:</span>
+                  <span className="text-[#6C726D]">Estimated Turnaround Time:</span>
                   <strong className="text-[#1A1D1B] font-mono">
-                    {selectedItemModal.predictedTurnaround || 'Before 3 days'} (~{selectedItemModal.avgFoundDays || 2.4}d avg turnaround)
+                    ~{selectedItemModal.avgFoundDays || computeRecoveryPrediction(selectedItemModal).avgDays} days avg
                   </strong>
                 </div>
                 <p className="text-[11px] text-[#525753] leading-relaxed">
-                  {selectedItemModal.historicalBenchmark || `Based on 120,000 campus records: ${selectedItemModal.confidence || 84}% of lost ${selectedItemModal.category} items reported near ${selectedItemModal.location} are recovered within 72 hours (3 days).`}
+                  {selectedItemModal.historicalBenchmark || `Based on historical campus dataset: ~${selectedItemModal.confidence || 84}% of lost ${selectedItemModal.category} items reported near ${selectedItemModal.location} are recovered (average turnaround: ~${selectedItemModal.avgFoundDays || computeRecoveryPrediction(selectedItemModal).avgDays} days).`}
                 </p>
               </div>
             )}

@@ -3,7 +3,7 @@ Single-Item Recovery Status & Turnaround Time Predictor
 -------------------------------------------------------
 Uses the trained Best Model (Random Forest Classifier) and historical
 campus dataset benchmarks (120,000 records) to predict:
-1. Expected Found Window (e.g. "Before 3 days" / "Within 2 days")
+1. Estimated Recovery Turnaround (e.g. "~2.2 days avg")
 2. Average Found Time in days (e.g. 2.4 days)
 3. Target Estimated Recovery Date (e.g. 29 Nov 2026)
 4. Recovery Probability & Confidence Score (e.g. 86.5%)
@@ -140,27 +140,22 @@ def predict_item_recovery(item_dict: dict):
 
     is_lost = sanitized["item_type"].lower() == "lost"
 
-    # Window phrasing calibrated for lost items
-    if base_days <= 1.6:
-        window_label = "Before 2 days"
-    elif base_days <= 2.7:
-        window_label = "Before 3 days"
-    else:
-        window_label = "Within 3–4 days"
+    # Dynamic turnaround Phrasing based on empirical dataset calculations
+    turnaround_label = f"~{base_days} days"
 
     # Compute target date
-    target_date = datetime.date.today() + datetime.timedelta(days=int(round(base_days)))
+    target_date = datetime.date.today() + datetime.timedelta(days=max(1, int(round(base_days))))
     target_date_str = target_date.strftime("%d %b %Y")
 
     if is_lost:
         benchmark_summary = (
-            f"Based on 120,000 GLA campus records: {recovery_rate}% of lost {sanitized['category']} "
-            f"items in {sanitized['location']} are recovered within 72 hours (3 days)."
+            f"Based on historical campus records: ~{recovery_rate}% of lost {sanitized['category']} "
+            f"items in {sanitized['location']} are recovered (historical average resolution: ~{base_days} days)."
         )
     else:
         benchmark_summary = (
             f"Physical custody logged at Central Proctor Desk (AB-1 Room 104). "
-            f"Historical reclaim rate is 88.5% within 72 hours of turn-in."
+            f"Historical reclaim rate is 88.5% of turned-in items."
         )
 
     return {
@@ -169,10 +164,11 @@ def predict_item_recovery(item_dict: dict):
         "class_probabilities": prob_dict,
         "turnaround_prediction": {
             "is_lost": is_lost,
-            "estimated_found_window": window_label if is_lost else "In Campus Custody",
+            "estimated_turnaround": turnaround_label if is_lost else "In Campus Custody",
+            "estimated_found_window": turnaround_label if is_lost else "In Campus Custody",
             "avg_found_days": base_days if is_lost else None,
-            "min_days": max(1, int(round(base_days - 1))) if is_lost else None,
-            "max_days": int(round(base_days + 0.4)) if is_lost else None,
+            "min_days": max(1, int(round(base_days - 0.8))) if is_lost else None,
+            "max_days": int(round(base_days + 0.8)) if is_lost else None,
             "target_recovery_date": target_date_str if is_lost else "In Custody (Immediate Claim)",
             "recovery_likelihood": f"{recovery_rate}%",
             "confidence_level": "High Probability" if recovery_rate >= 80 else "Moderate Probability",
@@ -181,9 +177,9 @@ def predict_item_recovery(item_dict: dict):
             "location": sanitized["location"],
             "custody_status": "In Custody · Central Proctor Desk AB-1 Room 104" if not is_lost else "Active Campus Search",
             "milestones": [
-                {"hour": "0–24h", "title": "Custodial Logging", "status": "Campus security & proctor desk sweep"},
-                {"hour": "24–48h", "title": "AI Candidate Match", "status": "MobileNetV2 visual & TF-IDF NLP pairing"},
-                {"hour": "48–72h", "title": "Handover Resolution", "status": "Physical claim verification at AB-1 Room 104"}
+                {"step": "Phase 1", "title": "Custodial Sweep", "status": "Campus security & proctor desk sweep"},
+                {"step": "Phase 2", "title": "AI Candidate Match", "status": "MobileNetV2 visual & TF-IDF NLP pairing"},
+                {"step": "Phase 3", "title": "Handover Resolution", "status": "Physical claim verification at AB-1 Room 104"}
             ]
         }
     }
@@ -226,7 +222,7 @@ def main():
         tp = res["turnaround_prediction"]
         print(f"\n[*] ITEM: {item['item_name']} ({item['category']}) @ {item['location']}")
         print(f"    • Estimated Found Window :  {tp['estimated_found_window']}")
-        print(f"    • Historical Avg Turnaround:  {tp['avg_found_days']} days (Before 3 days threshold)")
+        print(f"    • Historical Avg Turnaround:  {tp['avg_found_days']} days")
         print(f"    • Target Recovery Date  :  {tp['target_recovery_date']}")
         print(f"    • Recovery Probability  :  {tp['recovery_likelihood']} ({tp['confidence_level']})")
         print(f"    • Campus Benchmark      :  {tp['historical_benchmark']}")

@@ -245,7 +245,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
           ===================================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Card 1: Total Items */}
-        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3">
+        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
           <div className="flex items-center justify-between text-xs text-[#6C726D]">
             <span className="font-medium">Total Belongs Logged</span>
             <span className="bg-[#E1EFE6] text-[#2E5F46] font-semibold px-2 py-0.5 rounded-full text-[11px]">+14.2%</span>
@@ -260,7 +260,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
         </div>
 
         {/* Card 2: Recovery Success Rate */}
-        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3">
+        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
           <div className="flex items-center justify-between text-xs text-[#6C726D]">
             <span className="font-medium">Recovery Success Rate</span>
             <span className="bg-[#D8ECE0] text-[#1E3A2F] font-semibold px-2 py-0.5 rounded-full text-[11px]">ML Predicted</span>
@@ -275,7 +275,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
         </div>
 
         {/* Card 3: AI Match Confidence */}
-        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3">
+        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
           <div className="flex items-center justify-between text-xs text-[#6C726D]">
             <span className="font-medium">AI Multimodal Confidence</span>
             <span className="bg-[#FCE3D2] text-[#8C3A27] font-semibold px-2 py-0.5 rounded-full text-[11px]">MobileNetV2</span>
@@ -290,7 +290,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
         </div>
 
         {/* Card 4: Average Resolution Time */}
-        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3">
+        <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
           <div className="flex items-center justify-between text-xs text-[#6C726D]">
             <span className="font-medium">Avg Resolution Time</span>
             <span className="bg-[#FCEAE6] text-[#C24136] font-semibold px-2 py-0.5 rounded-full text-[11px]">68% Faster</span>
@@ -310,7 +310,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
           ===================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Donut / Pie Chart (Recovery Status Distribution) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-6">
+        <div className="lg:col-span-5 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-6 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#C24136]">
@@ -460,7 +460,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
         </div>
 
         {/* Right Column: Monthly Lost vs Found Trends (Line & Area Chart) */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-6">
+        <div className="lg:col-span-7 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-6 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#1E3A2F]">
@@ -617,7 +617,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
           ===================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Items by Category (Horizontal Stacked Bar Chart) */}
-        <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-5">
+        <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-5 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#3D7A5A]">
@@ -670,7 +670,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
         </div>
 
         {/* Right Column: Campus Hotspot Locations (Vertical Bar Chart) */}
-        <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-5">
+        <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-[#EDEAE2] shadow-xs space-y-5 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#C24136]">
@@ -728,7 +728,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
       {/* =====================================================================
           4. ROW 3: MACHINE LEARNING ALGORITHM BENCHMARK (Capstone Slide 5)
           ===================================================================== */}
-      <div className="bg-white rounded-3xl p-7 sm:p-9 border border-[#EDEAE2] shadow-xs space-y-7">
+      <div className="bg-white rounded-3xl p-7 sm:p-9 border border-[#EDEAE2] shadow-xs space-y-7 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F0EDE6] pb-4">
           <div>
             <div className="inline-flex items-center gap-1.5 bg-[#E1EFE6] text-[#2E5F46] text-xs font-semibold px-2.5 py-0.5 rounded-full mb-1">
@@ -792,7 +792,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
                   <div
                     key={key}
                     onClick={() => setSelectedModel(key)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-xs ${
                       isSelected
                         ? 'border-[#1E3A2F] bg-[#FAF9F5] shadow-xs'
                         : 'border-[#EDEAE2] hover:border-[#D5D2C8]'
@@ -836,7 +836,7 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
           </div>
 
           {/* Right Inspector Box: Detailed Model Metrics */}
-          <div className="lg:col-span-5 bg-[#FAF9F5] rounded-3xl p-6 border border-[#EDEAE2] space-y-4">
+          <div className="lg:col-span-5 bg-[#FAF9F5] rounded-3xl p-6 border border-[#EDEAE2] space-y-4 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono font-bold uppercase text-[#C24136]">
                 ACTIVE MODEL INSPECTOR
@@ -898,27 +898,27 @@ export default function DataVisualsView({ onNavigateReport, onNavigateBrowse, sh
             End-to-End Prediction Pipeline:
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center">
-            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2]">
+            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-default">
               <span className="text-[10px] font-bold text-[#6C726D] block">STAGE 1</span>
               <strong className="text-xs text-[#1A1D1B] block mt-0.5">Synthetic Data</strong>
               <span className="text-[11px] text-[#6C726D]">120k Tabular Records</span>
             </div>
-            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2]">
+            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-default">
               <span className="text-[10px] font-bold text-[#6C726D] block">STAGE 2</span>
               <strong className="text-xs text-[#1A1D1B] block mt-0.5">Preprocessing</strong>
               <span className="text-[11px] text-[#6C726D]">One-Hot &amp; Scaling</span>
             </div>
-            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2]">
+            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-default">
               <span className="text-[10px] font-bold text-[#6C726D] block">STAGE 3</span>
               <strong className="text-xs text-[#1A1D1B] block mt-0.5">Feature Extraction</strong>
               <span className="text-[11px] text-[#6C726D]">Time, Zone, Category</span>
             </div>
-            <div className="bg-[#E1EFE6] p-3 rounded-xl border border-[#D5E8DB]">
+            <div className="bg-[#E1EFE6] p-3 rounded-xl border border-[#D5E8DB] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-default">
               <span className="text-[10px] font-bold text-[#2E5F46] block">STAGE 4</span>
               <strong className="text-xs text-[#1E3A2F] block mt-0.5">Random Forest</strong>
               <span className="text-[11px] text-[#2E5F46]">Supervised 100 Trees</span>
             </div>
-            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2]">
+            <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#EDEAE2] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-default">
               <span className="text-[10px] font-bold text-[#6C726D] block">STAGE 5</span>
               <strong className="text-xs text-[#1A1D1B] block mt-0.5">Predicted Status</strong>
               <span className="text-[11px] text-[#C24136]">Pending/Recovered/Closed</span>

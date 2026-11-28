@@ -1530,7 +1530,7 @@ function App() {
               <div className="lg:col-span-5 relative flex justify-center py-6">
                 <div className="relative w-full max-w-md h-[340px]">
                   {/* Card 1: Green Card (Sage backpack Vector Graphic) */}
-                  <div className="absolute top-0 left-0 bg-white rounded-3xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] w-60 z-10 transition-transform hover:-translate-y-1">
+                  <div className="absolute top-0 left-0 bg-white rounded-3xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] w-60 z-10 -rotate-2 transition-all duration-300 ease-out hover:-translate-y-2 hover:rotate-0 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] cursor-pointer">
                     <div className="bg-[#D5E8DB] rounded-2xl h-36 flex items-center justify-center p-3">
                       <BackpackVector />
                     </div>
@@ -1543,7 +1543,7 @@ function App() {
                   </div>
 
                   {/* Card 2: Peach Card (Peach smartphone Vector Graphic) */}
-                  <div className="absolute top-8 right-2 bg-white rounded-3xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] w-60 z-20 transition-transform hover:-translate-y-1">
+                  <div className="absolute top-8 right-2 bg-white rounded-3xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] w-60 z-20 rotate-2 transition-all duration-300 ease-out hover:-translate-y-2 hover:rotate-0 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] cursor-pointer">
                     <div className="bg-[#FCE3D2] rounded-2xl h-36 flex items-center justify-center p-3">
                       <PhoneVector variant="peach" />
                     </div>
@@ -1553,7 +1553,7 @@ function App() {
                   </div>
 
                   {/* Card 3: Predicted status Card (Pending) */}
-                  <div className="absolute bottom-2 left-16 bg-white rounded-2xl p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)] border border-[#EDEAE2] w-64 z-30 space-y-1.5 transition-transform hover:-translate-y-1">
+                  <div className="absolute bottom-2 left-16 bg-white rounded-2xl p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)] border border-[#EDEAE2] w-64 z-30 space-y-1.5 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_48px_rgba(0,0,0,0.14)] cursor-pointer">
                     <span className="text-[11px] font-medium text-[#6C726D] block">
                       Predicted status
                     </span>
@@ -1574,36 +1574,36 @@ function App() {
               {/* Card 1: Report it */}
               <div
                 onClick={() => setActiveTab('report')}
-                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out group"
               >
-                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Report it</h3>
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1 group-hover:text-[#1E3A2F] transition-colors">Report it</h3>
                 <p className="text-sm text-[#6C726D]">Add the item, place and date.</p>
               </div>
 
               {/* Card 2: Track status */}
               <div
                 onClick={() => setActiveTab('browse')}
-                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out group"
               >
-                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Track status</h3>
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1 group-hover:text-[#1E3A2F] transition-colors">Track status</h3>
                 <p className="text-sm text-[#6C726D]">See Pending, Recovered or Closed.</p>
               </div>
 
               {/* Card 3: Get it back */}
               <div
                 onClick={() => setActiveTab('claims')}
-                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out group"
               >
-                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Get it back</h3>
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1 group-hover:text-[#1E3A2F] transition-colors">Get it back</h3>
                 <p className="text-sm text-[#6C726D]">Correct the status once it is recovered.</p>
               </div>
 
               {/* Card 4: Data visuals */}
               <div
                 onClick={() => setActiveTab('analytics')}
-                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] transition-all"
+                className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs cursor-pointer hover:border-[#1E3A2F] hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out group"
               >
-                <h3 className="font-medium text-base text-[#1A1D1B] mb-1">Data visuals</h3>
+                <h3 className="font-medium text-base text-[#1A1D1B] mb-1 group-hover:text-[#1E3A2F] transition-colors">Data visuals</h3>
                 <p className="text-sm text-[#6C726D]">Explore recovery charts &amp; ML metrics.</p>
               </div>
             </div>
@@ -1636,7 +1636,7 @@ function App() {
             {/* Main Content Layout: Sidebar Filter + Items List */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2 relative z-10">
               {/* Left Column: Filter Sidebar */}
-              <aside className="lg:col-span-3 bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-6">
+              <aside className="lg:col-span-3 bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-6 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
                 <h3 className="font-serif font-bold text-lg text-[#1A1D1B]">Filter</h3>
 
                 {/* Type Filter */}
@@ -1737,7 +1737,8 @@ function App() {
                     paginatedItems.map((item) => (
                       <div
                         key={item.id}
-                        className="bg-white rounded-xl px-4 py-3 sm:py-3.5 min-h-[96px] sm:h-[96px] border border-[#EDEAE2] shadow-2xs hover:border-[#D5D2C8] transition-all flex items-center justify-between gap-4"
+                        onClick={() => setSelectedItemModal(item)}
+                        className="bg-white rounded-xl px-4 py-3 sm:py-3.5 min-h-[96px] sm:h-[96px] border border-[#EDEAE2] shadow-2xs hover:border-[#1E3A2F]/40 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-pointer flex items-center justify-between gap-4 group"
                       >
                         {/* Left: Pastel Vector Thumbnail & Text Details */}
                         <div className="flex items-center gap-4 min-w-0">
@@ -1854,7 +1855,7 @@ function App() {
             {/* Report Form Layout: Left Form + Right Sidebar Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2 relative z-10">
               {/* Left Column: Main Form */}
-              <div className="lg:col-span-8 bg-white rounded-2xl p-7 sm:p-9 border border-[#EDEAE2] shadow-xs space-y-7">
+              <div className="lg:col-span-8 bg-white rounded-2xl p-7 sm:p-9 border border-[#EDEAE2] shadow-xs space-y-7 hover:-translate-y-1 hover:shadow-md transition-all duration-300 ease-out">
                 {/* Lost vs Found Radio Toggle */}
                 <div className="flex items-center gap-3 pb-3 border-b border-[#F0EDE6]">
                   <span className="text-xs font-semibold text-[#1A1D1B] uppercase tracking-wider">I am reporting:</span>
@@ -2071,7 +2072,7 @@ function App() {
               <div className="lg:col-span-4 space-y-5">
                 {/* Card 1: Dynamic AI Forecast for LOST items OR Custody Intake for FOUND items */}
                 {reportType === 'Lost' ? (
-                  <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-4">
+                  <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-4 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#C24136] flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-[#C24136]" />
@@ -2125,7 +2126,7 @@ function App() {
                     </p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-4">
+                  <div className="bg-white rounded-2xl p-6 border border-[#EDEAE2] shadow-xs space-y-4 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#2E5F46] flex items-center gap-1.5">
                         <ShieldCheck className="w-4 h-4 text-[#2E5F46]" />
@@ -2170,7 +2171,7 @@ function App() {
                 )}
 
                 {/* Card 2: Campus Recovery Protocol (Soft Pink/Peach #FCEAE6) */}
-                <div className="bg-[#FCEAE6] rounded-2xl p-6 border border-[#F5D5CE] space-y-3">
+                <div className="bg-[#FCEAE6] rounded-2xl p-6 border border-[#F5D5CE] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md transition-all duration-300 ease-out cursor-default">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-[#C24136]" />
                     <h4 className="font-bold text-sm text-[#1A1D1B]">Campus Recovery Pipeline</h4>
@@ -2344,7 +2345,7 @@ function App() {
                 {displayedClaimsMatches.map((match) => (
                   <div
                     key={match.id}
-                    className={`bg-white rounded-2xl p-6 border shadow-xs space-y-4 relative transition-all ${
+                    className={`bg-white rounded-2xl p-6 border shadow-xs space-y-4 relative transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-md ${
                       match.isDirectUserMatch
                         ? 'border-[#386A51] ring-2 ring-[#2E5F46]/10 shadow-sm'
                         : 'border-[#EDEAE2]'
@@ -2369,7 +2370,7 @@ function App() {
 
                     <div className="grid grid-cols-2 gap-4">
                       {/* Lost Side */}
-                      <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#FBE4D8] space-y-2 flex flex-col items-center">
+                      <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#FBE4D8] space-y-2 flex flex-col items-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs">
                         <span className="text-[10px] font-bold text-[#C24136] bg-[#FCEAE6] px-2 py-0.5 rounded uppercase tracking-wide">
                           {match.isDirectUserMatch && match.userSide === 'lost'
                             ? 'YOUR REPORT (LOST)'
@@ -2403,7 +2404,7 @@ function App() {
                       </div>
 
                       {/* Found Side */}
-                      <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D8ECE0] space-y-2 flex flex-col items-center">
+                      <div className="bg-[#FAF9F5] p-3.5 rounded-xl border border-[#D8ECE0] space-y-2 flex flex-col items-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs">
                         <span className="text-[10px] font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded uppercase tracking-wide">
                           {match.isDirectUserMatch && match.userSide === 'found'
                             ? 'YOUR REPORT (FOUND)'

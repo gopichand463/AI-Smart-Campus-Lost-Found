@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import glob
+import asyncio
 import joblib
 import numpy as np
 import uvicorn
@@ -39,6 +40,13 @@ from storage_db import (
     get_upload_path,
     register_user,
     authenticate_user,
+    get_settings,
+    update_settings,
+    cleanup_expired_records,
+    record_notifications,
+    list_sent_notifications,
+    log_audit_event,
+    list_audit_logs,
 )
 
 # Paths
@@ -69,14 +77,22 @@ def load_resources():
     global extractor, matcher, candidate_matrix, candidate_metadata
     global tfidf_model, w2v_model, text_matcher, catalog_tfidf_matrix, catalog_w2v_matrix, text_catalog_metadata
 
-    # 0. Initialize Persistent SQLite Database & Uploads Folder
+    # 0. Initialize Persistent SQLite Database, Retention Cleanup & Settings
     init_db()
-    print("[OK] Initialized persistent SQLite database & uploads storage.")
+    cleanup_res = cleanup_expired_records()
+    active_settings = get_settings()
+    print(
+        f"[OK] SQLite initialized | Retention cleanup: {cleanup_res['removedCount']} expired removed | Similarity threshold: {active_settings['minSimilarityPercent']}%"
+    )
 
     # 1. Vision Engine
     print("[*] Initializing MobileNetV2 Feature Extractor...")
-    extractor = ImageEmbeddingExtractor(model_name="mobilenet_v2")
-    matcher = ImageMatcher(threshold=0.50)
+    try:
+        extractor = ImageEmbeddingExtractor(model_name="mobilenet_v2")
+    except Exception as vision_err:
+        print(f"[WARN] MobileNetV2 unavailable ({vision_err}). NLP Text fallback remains active.")
+        extractor = None
+    matcher = ImageMatcher(threshold=active_settings["minSimilarityCosine"])
 
     if os.path.exists(INDEX_PATH):
         print(f"[*] Loading visual catalog index: {os.path.basename(INDEX_PATH)}")
@@ -220,22 +236,59 @@ async def sample_catalog(request):
 
 async def match_image(request):
     """
-    Accepts multipart/form-data upload with key 'file'.
-    Extracts deep visual embedding and returns top matching found items.
+    Accepts multipart/form-data upload with key 'file' (and optional 'description').
+    NFR-24: Uses operator-configured similarity threshold from system settings.
+    NFR-27: Automatically falls back to TF-IDF/Word2Vec text matching if vision matching is unavailable.
     """
+    form = await request.form()
+    uploaded_file = form.get("file")
+    top_k = int(request.query_params.get("top_k", 5))
+    category = request.query_params.get("category") or form.get("category")
+    description = request.query_params.get("description") or form.get("description") or ""
+
+    settings = get_settings()
+    raw_threshold = request.query_params.get("threshold")
+    threshold = float(raw_threshold) if raw_threshold is not None else settings["minSimilarityCosine"]
+
+    def _run_text_fallback(reason: str):
+        if text_matcher is None:
+            return JSONResponse(
+                {"error": f"Image matching unavailable ({reason}) and text fallback offline."},
+                status_code=503,
+            )
+        query_text = str(description).strip() or str(category or "campus lost item")
+        t_fb = time.time()
+        fb_matches = text_matcher.match(
+            query_text=query_text,
+            catalog_tfidf_matrix=catalog_tfidf_matrix,
+            catalog_w2v_matrix=catalog_w2v_matrix,
+            catalog_metadata=text_catalog_metadata,
+            top_k=top_k,
+            filter_category=category,
+        )
+        return JSONResponse({
+            "status": "success",
+            "active_engine": "nlp_text_fallback",
+            "fallback_used": True,
+            "fallback_reason": reason,
+            "threshold_used": threshold,
+            "latency": {"total_ms": round((time.time() - t_fb) * 1000, 2)},
+            "match_count": len(fb_matches),
+            "matches": fb_matches,
+        })
+
     if extractor is None:
-        return JSONResponse({"error": "Embedding model not initialized"}, status_code=500)
+        return _run_text_fallback("Image embedding model not initialized")
 
     try:
-        form = await request.form()
-        uploaded_file = form.get("file")
-
         if not uploaded_file:
+            if description:
+                return _run_text_fallback("No image provided; matched via description")
             return JSONResponse({"error": "No image file provided in form field 'file'"}, status_code=400)
 
         image_bytes = await uploaded_file.read()
         if len(image_bytes) == 0:
-            return JSONResponse({"error": "Empty file received"}, status_code=400)
+            return _run_text_fallback("Empty image payload")
 
         # 1. Extract embedding from uploaded image bytes
         t0 = time.time()
@@ -244,10 +297,6 @@ async def match_image(request):
 
         # 2. Vectorized Cosine Similarity Search
         t_search = time.time()
-        top_k = int(request.query_params.get("top_k", 5))
-        threshold = float(request.query_params.get("threshold", matcher.threshold))
-        category = request.query_params.get("category", None)
-
         matches = matcher.find_top_matches_matrix(
             query_embedding=query_vec,
             candidate_matrix=candidate_matrix,
@@ -259,11 +308,16 @@ async def match_image(request):
         search_time_ms = round((time.time() - t_search) * 1000, 2)
 
         # Add image URLs to each match
+        base_url = str(request.base_url).rstrip("/")
         for m in matches:
-            m["image_url"] = f"http://localhost:8000/api/catalog/image/{m['filename']}"
+            meta_url = m.get("metadata", {}).get("image_url")
+            m["image_url"] = meta_url or f"{base_url}/api/catalog/image/{m['filename']}"
 
         return JSONResponse({
             "status": "success",
+            "active_engine": "mobilenet_v2_vision",
+            "fallback_used": False,
+            "threshold_used": threshold,
             "filename": uploaded_file.filename,
             "latency": {
                 "embedding_ms": embed_time_ms,
@@ -276,6 +330,8 @@ async def match_image(request):
         })
 
     except Exception as e:
+        if text_matcher is not None:
+            return _run_text_fallback(str(e))
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
@@ -353,10 +409,15 @@ async def predict_status(request):
 
 
 async def get_items(request):
-    """Returns all shared Lost & Found items from SQLite with live image URLs."""
+    """
+    Returns shared Lost & Found items from SQLite with privacy-sanitized contact fields (NFR-29).
+    Only the reporting owner or Proctor Office Operator sees unmasked personal emails/names.
+    """
     try:
         base_url = str(request.base_url).rstrip("/")
-        items = list_items(base_url=base_url)
+        viewer_email = request.headers.get("x-user-email") or request.query_params.get("viewer_email")
+        viewer_role = request.headers.get("x-user-role") or request.query_params.get("viewer_role")
+        items = list_items(base_url=base_url, viewer_email=viewer_email, viewer_role=viewer_role)
         return JSONResponse({"status": "success", "count": len(items), "items": items})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -364,8 +425,8 @@ async def get_items(request):
 
 async def post_item(request):
     """
-    Creates a new Lost or Found item in SQLite and saves any uploaded photo
-    to disk (`database/uploads/`) so all users across browsers/devices can view it.
+    Creates a new Lost or Found item in SQLite, strips EXIF/GPS metadata (NFR-23),
+    and saves any uploaded photo to disk (`database/uploads/`).
     """
     global candidate_matrix, candidate_metadata
     try:
@@ -389,7 +450,7 @@ async def post_item(request):
         else:
             item_data = await request.json()
 
-        saved_item = create_item(
+        saved_item, metadata_stripped = create_item(
             item_data=item_data,
             image_bytes=image_bytes,
             original_filename=original_filename,
@@ -417,7 +478,10 @@ async def post_item(request):
             except Exception as emb_err:
                 print(f"[WARN] Could not index uploaded photo embedding: {emb_err}")
 
-        return JSONResponse({"status": "success", "item": saved_item}, status_code=201)
+        return JSONResponse(
+            {"status": "success", "metadataStripped": metadata_stripped, "item": saved_item},
+            status_code=201,
+        )
 
     except ValueError as ve:
         return JSONResponse({"error": str(ve)}, status_code=400)
@@ -426,7 +490,7 @@ async def post_item(request):
 
 
 async def patch_item(request):
-    """Updates an item's recovery status ('Pending' | 'Recovered' | 'Closed')."""
+    """Updates an item's recovery status ('Pending' | 'Recovered' | 'Closed') with NFR-30 audit trail."""
     try:
         item_id = request.path_params["item_id"]
         data = await request.json()
@@ -434,8 +498,16 @@ async def patch_item(request):
         if status not in ("Pending", "Recovered", "Closed"):
             return JSONResponse({"error": "Invalid recoveryStatus value."}, status_code=400)
 
+        actor_email = request.headers.get("x-user-email") or data.get("actorEmail") or "operator@gla.ac.in"
+        actor_role = request.headers.get("x-user-role") or data.get("actorRole") or "Proctor Office Operator"
         base_url = str(request.base_url).rstrip("/")
-        updated = update_item_status(item_id, status, base_url=base_url)
+        updated = update_item_status(
+            item_id,
+            status,
+            base_url=base_url,
+            actor_email=actor_email,
+            actor_role=actor_role,
+        )
         if updated is None:
             return JSONResponse({"error": "Item not found."}, status_code=404)
         return JSONResponse({"status": "success", "item": updated})
@@ -499,6 +571,116 @@ async def auth_login(request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+async def get_system_settings(request):
+    """NFR-24 & NFR-28: Returns similarity threshold and retention policy configuration."""
+    return JSONResponse({"status": "success", "settings": get_settings()})
+
+
+async def put_system_settings(request):
+    """NFR-24 & NFR-28 & NFR-30: Updates similarity threshold / retention days and logs activity."""
+    global matcher
+    try:
+        data = await request.json()
+        min_sim = data.get("minSimilarityPercent")
+        ret_days = data.get("retentionDays")
+        actor_email = request.headers.get("x-user-email") or data.get("actorEmail") or "operator@gla.ac.in"
+        actor_role = request.headers.get("x-user-role") or data.get("actorRole") or "Proctor Office Operator"
+
+        updated = update_settings(
+            min_similarity_percent=min_sim,
+            retention_days=ret_days,
+            actor_email=actor_email,
+            actor_role=actor_role,
+        )
+        if matcher is not None:
+            matcher.threshold = updated["minSimilarityCosine"]
+        return JSONResponse({"status": "success", "settings": updated})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+async def admin_cleanup(request):
+    """NFR-28: Triggers retention policy cleanup of expired records & orphaned images."""
+    try:
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        ret_days = body.get("retentionDays")
+        actor_email = request.headers.get("x-user-email") or body.get("actorEmail") or "operator@gla.ac.in"
+        actor_role = request.headers.get("x-user-role") or body.get("actorRole") or "Proctor Office Operator"
+        result = cleanup_expired_records(
+            retention_days=ret_days,
+            actor_email=actor_email,
+            actor_role=actor_role,
+        )
+        return JSONResponse({"status": "success", "cleanup": result})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def notifications_dedup(request):
+    """NFR-26: Deduplicates match alerts so each match pair notifies once."""
+    try:
+        data = await request.json()
+        recipient = data.get("recipientEmail") or request.headers.get("x-user-email") or "campus_user@gla.ac.in"
+        matches = data.get("matches") or []
+        res = record_notifications(recipient, matches)
+        return JSONResponse({"status": "success", **res})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+async def get_notifications(request):
+    """NFR-26: Lists recorded sent notifications."""
+    email = request.query_params.get("email") or request.headers.get("x-user-email")
+    return JSONResponse({"status": "success", "notifications": list_sent_notifications(email)})
+
+
+async def get_audit_logs_endpoint(request):
+    """NFR-30: Lists activity & operator audit logs."""
+    limit = int(request.query_params.get("limit", 50))
+    return JSONResponse({"status": "success", "logs": list_audit_logs(limit=limit)})
+
+
+async def post_audit_log_endpoint(request):
+    """NFR-30: Appends a frontend-verified operator/claim action to the audit trail."""
+    try:
+        data = await request.json()
+        action = str(data.get("action") or "OPERATOR_ACTION")
+        actor_email = request.headers.get("x-user-email") or data.get("actorEmail") or "campus_user@gla.ac.in"
+        actor_role = request.headers.get("x-user-role") or data.get("actorRole") or "Student"
+        target_id = data.get("targetId")
+        details = data.get("details")
+        entry = log_audit_event(action=action, actor_email=actor_email, actor_role=actor_role, target_id=target_id, details=details)
+        return JSONResponse({"status": "success", "log": entry}, status_code=201)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+async def _periodic_retention_loop():
+    """NFR-28: Background retention cleanup scheduler (runs every 6 hours)."""
+    while True:
+        await asyncio.sleep(6 * 3600)
+        try:
+            cleanup_expired_records()
+        except Exception as err:
+            print(f"[WARN] Periodic retention cleanup failed: {err}")
+
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app):
+    task = asyncio.create_task(_periodic_retention_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
 # Routes
 routes = [
     Route("/", root_index, methods=["GET"]),
@@ -507,6 +689,13 @@ routes = [
     Route("/api/items", post_item, methods=["POST"]),
     Route("/api/items/{item_id}", patch_item, methods=["PATCH"]),
     Route("/api/uploads/{filename}", serve_uploaded_image, methods=["GET"]),
+    Route("/api/settings", get_system_settings, methods=["GET"]),
+    Route("/api/settings", put_system_settings, methods=["PUT"]),
+    Route("/api/admin/cleanup", admin_cleanup, methods=["POST"]),
+    Route("/api/notifications", get_notifications, methods=["GET"]),
+    Route("/api/notifications/dedup", notifications_dedup, methods=["POST"]),
+    Route("/api/audit-logs", get_audit_logs_endpoint, methods=["GET"]),
+    Route("/api/audit-logs", post_audit_log_endpoint, methods=["POST"]),
     Route("/api/auth/register", auth_register, methods=["POST"]),
     Route("/api/auth/login", auth_login, methods=["POST"]),
     Route("/api/catalog/image/{filename}", get_catalog_image, methods=["GET"]),
@@ -526,7 +715,7 @@ middleware = [
     )
 ]
 
-app = Starlette(routes=routes, middleware=middleware)
+app = Starlette(routes=routes, middleware=middleware, lifespan=lifespan)
 
 # Load resources upon module load
 load_resources()

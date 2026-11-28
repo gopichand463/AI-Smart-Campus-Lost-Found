@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   Search, MapPin, Calendar, Tag, ShieldCheck, AlertCircle, CheckCircle2,
   Clock, SlidersHorizontal, ArrowRight, Upload, X, Eye, EyeOff, Layers,
@@ -346,7 +346,7 @@ export function detectItemEntity(item) {
   return 'generic';
 }
 
-export function computeItemSimilarity(itemA, itemB) {
+export function computeItemSimilarity(itemA, itemB, minThreshold = 65) {
   const entityA = detectItemEntity(itemA);
   const entityB = detectItemEntity(itemB);
 
@@ -450,8 +450,8 @@ export function computeItemSimilarity(itemA, itemB) {
 
   const finalScore = Math.min(98, Math.max(0, Math.round(score)));
 
-  // Strict confidence threshold: Must be >= 65% to be considered a match
-  const isMatch = finalScore >= 65;
+  // NFR-24: Operator-configurable minimum similarity threshold (default 65%)
+  const isMatch = finalScore >= minThreshold;
 
   return {
     score: finalScore,
@@ -781,14 +781,62 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Load shared Lost & Found items + uploaded photo URLs from SQLite backend on startup
+  // NFR-24, NFR-28, NFR-30: Operator Threshold, Retention & Audit Trail states
+  const [similarityThreshold, setSimilarityThreshold] = useState(() => {
+    const saved = Number(localStorage.getItem('findly_similarity_threshold'));
+    return Number.isFinite(saved) && saved >= 30 && saved <= 95 ? saved : 65;
+  });
+  const [retentionDays, setRetentionDays] = useState(90);
+  const [showOperatorControls, setShowOperatorControls] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
+  // NFR-25: Failed Upload Recovery queue (persisted metadata + in-memory File handle)
+  const [failedUploads, setFailedUploads] = useState(() => {
+    try {
+      const saved = localStorage.getItem('findly_failed_uploads');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const failedPhotoFilesRef = useRef({});
+  const [retryingUploadId, setRetryingUploadId] = useState(null);
+
+  // NFR-26: Notification Reliability (deduplicates match pair notifications)
+  const notifiedMatchKeysRef = useRef(
+    (() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('findly_notified_match_keys') || '[]');
+        return new Set(Array.isArray(saved) ? saved : []);
+      } catch (e) {
+        return new Set();
+      }
+    })()
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('findly_failed_uploads', JSON.stringify(failedUploads));
+    } catch (e) {}
+  }, [failedUploads]);
+
+  // Load shared Lost & Found items (with NFR-29 privacy headers) & system settings
   useEffect(() => {
     let isMounted = true;
-    const fetchSharedItems = async () => {
+    const fetchSharedItemsAndSettings = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/items`);
-        if (res.ok) {
-          const data = await res.json();
+        const headers = {};
+        if (currentUser?.email) headers['X-User-Email'] = currentUser.email;
+        if (currentUser?.role) headers['X-User-Role'] = currentUser.role;
+
+        const [itemsRes, settingsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/items`, { headers }),
+          fetch(`${API_BASE}/api/settings`),
+        ]);
+
+        if (itemsRes.ok) {
+          const data = await itemsRes.json();
           if (isMounted && data && Array.isArray(data.items) && data.items.length > 0) {
             const hydrated = data.items.map((item) => {
               const forecast = computeRecoveryPrediction(item);
@@ -804,15 +852,140 @@ function App() {
             setItems(hydrated);
           }
         }
+
+        if (settingsRes.ok) {
+          const sData = await settingsRes.json();
+          if (isMounted && sData?.settings) {
+            setSimilarityThreshold(sData.settings.minSimilarityPercent || 65);
+            setRetentionDays(sData.settings.retentionDays || 90);
+          }
+        }
       } catch (err) {
         // Offline fallback keeps cached items
       }
     };
-    fetchSharedItems();
+    fetchSharedItemsAndSettings();
     return () => {
       isMounted = false;
     };
+  }, [currentUser]);
+
+  const fetchAuditLogs = useCallback(async () => {
+    setLoadingAuditLogs(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/audit-logs?limit=30`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuditLogs(data.logs || []);
+      }
+    } catch (e) {
+      // Ignore if backend unavailable
+    } finally {
+      setLoadingAuditLogs(false);
+    }
   }, []);
+
+  const updateThresholdSetting = async (newPercent) => {
+    const clamped = Math.max(30, Math.min(95, Number(newPercent) || 65));
+    setSimilarityThreshold(clamped);
+    try {
+      localStorage.setItem('findly_similarity_threshold', String(clamped));
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentUser?.email ? { 'X-User-Email': currentUser.email } : {}),
+          ...(currentUser?.role ? { 'X-User-Role': currentUser.role } : {}),
+        },
+        body: JSON.stringify({ minSimilarityPercent: clamped }),
+      });
+      if (res.ok) {
+        showToast(`Minimum similarity threshold updated to ${clamped}% (logged in audit trail).`);
+        if (showOperatorControls) fetchAuditLogs();
+      }
+    } catch (e) {
+      showToast(`Threshold updated locally to ${clamped}%.`);
+    }
+  };
+
+  const runRetentionCleanup = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/cleanup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentUser?.email ? { 'X-User-Email': currentUser.email } : {}),
+          ...(currentUser?.role ? { 'X-User-Role': currentUser.role } : {}),
+        },
+        body: JSON.stringify({ retentionDays }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const c = data.cleanup || {};
+        showToast(
+          `Retention cleanup complete (${c.retentionDays}d policy): ${c.removedCount || 0} expired records & ${c.removedImages || 0} images removed.`
+        );
+        fetchAuditLogs();
+      }
+    } catch (e) {
+      showToast('Retention cleanup requires active backend connection.');
+    }
+  };
+
+  // NFR-25: Retry failed upload (manual button or automatic on network restore)
+  const retryFailedUpload = useCallback(async (failedEntry) => {
+    setRetryingUploadId(failedEntry.id);
+    try {
+      const formData = new FormData();
+      Object.entries(failedEntry.payload || {}).forEach(([key, val]) => {
+        if (val !== undefined && val !== null) {
+          formData.append(key, String(val));
+        }
+      });
+      const fileObj = failedPhotoFilesRef.current[failedEntry.id];
+      if (fileObj) {
+        formData.append('file', fileObj);
+      } else if (failedEntry.photoDataUrl && failedEntry.photoDataUrl.startsWith('data:')) {
+        const blobRes = await fetch(failedEntry.photoDataUrl);
+        const blob = await blobRes.blob();
+        formData.append('file', blob, failedEntry.photoName || 'recovered_upload.jpg');
+      }
+
+      const res = await fetch(`${API_BASE}/api/items`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data?.item) {
+        setItems((prev) => {
+          const filtered = prev.filter((it) => it.id !== failedEntry.id);
+          return [data.item, ...filtered];
+        });
+      }
+      delete failedPhotoFilesRef.current[failedEntry.id];
+      setFailedUploads((prev) => prev.filter((f) => f.id !== failedEntry.id));
+      showToast(`Recovered & uploaded report ${failedEntry.id} successfully!`);
+    } catch (err) {
+      showToast(`Retry failed for ${failedEntry.id}. Check connection and try again.`);
+    } finally {
+      setRetryingUploadId(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      if (failedUploads.length > 0) {
+        failedUploads.forEach((entry) => {
+          retryFailedUpload(entry);
+        });
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [failedUploads, retryFailedUpload]);
 
   // Synchronize localStorage cleanly (quota-safe fallback cache)
   useEffect(() => {
@@ -977,6 +1150,7 @@ function App() {
       ...itemPayload,
       userUploadedPhoto: uploadedPhotoPreview || null,
     };
+    let uploadSucceeded = false;
 
     try {
       const formData = new FormData();
@@ -993,26 +1167,62 @@ function App() {
         method: 'POST',
         body: formData,
       });
-      if (saveRes.ok) {
-        const saveData = await saveRes.json();
-        if (saveData && saveData.item) {
-          savedItem = saveData.item;
-        }
+      if (!saveRes.ok) {
+        throw new Error(`Upload failed (${saveRes.status})`);
+      }
+      const saveData = await saveRes.json();
+      if (saveData && saveData.item) {
+        savedItem = saveData.item;
+        uploadSucceeded = true;
       }
     } catch (err) {
-      // Fallback cleanly to local state if backend is offline
+      // NFR-25: Queue failed upload so user can retry when internet connection recovers
+      if (uploadedPhoto) {
+        failedPhotoFilesRef.current[newId] = uploadedPhoto;
+      }
+      setFailedUploads((prev) => [
+        {
+          id: newId,
+          title: itemPayload.title,
+          payload: itemPayload,
+          photoName: uploadedPhoto?.name || null,
+          photoDataUrl:
+            uploadedPhotoPreview && uploadedPhotoPreview.length < 400000
+              ? uploadedPhotoPreview
+              : null,
+          failedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+        ...prev.filter((f) => f.id !== newId),
+      ]);
     }
 
-    // Asynchronous background AI matching call to backend if image is uploaded
+    // NFR-27: Multimodal matching with automatic NLP Text Fallback if image matching fails
     if (uploadedPhoto) {
       try {
         const body = new FormData();
         body.append('file', uploadedPhoto);
-        fetch(`${API_BASE}/api/match-image?top_k=3&category=${encodeURIComponent(reportForm.category)}`, {
+        const matchRes = await fetch(
+          `${API_BASE}/api/match-image?top_k=3&category=${encodeURIComponent(reportForm.category)}&description=${encodeURIComponent(reportForm.description || reportForm.itemName)}`,
+          {
+            method: 'POST',
+            body,
+          }
+        );
+        if (!matchRes.ok) {
+          throw new Error('Image model unavailable');
+        }
+      } catch (err) {
+        // Automatic fallback to text matching endpoint (TF-IDF + Word2Vec)
+        fetch(`${API_BASE}/api/match-text`, {
           method: 'POST',
-          body,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: `${reportForm.itemName} ${reportForm.description || ''}`.trim(),
+            category: reportForm.category,
+            top_k: 3,
+          }),
         }).catch(() => {});
-      } catch (err) {}
+      }
     }
 
     setItems((prev) => [savedItem, ...prev]);
@@ -1023,7 +1233,11 @@ function App() {
     setUploadedPhoto(null);
     setUploadedPhotoPreview(null);
 
-    showToast(`Report ${savedItem.id} saved! AI Forecast: Estimated turnaround ~${savedItem.avgFoundDays || activePrediction.avgDays || 2.4} days.`);
+    if (uploadSucceeded) {
+      showToast(`Report ${savedItem.id} saved! AI Forecast: Estimated turnaround ~${savedItem.avgFoundDays || activePrediction.avgDays || 2.4} days.`);
+    } else {
+      showToast(`Connection interrupted while uploading ${newId}. Queued for Retry Upload.`);
+    }
     setActiveTab('browse');
   };
 
@@ -1051,7 +1265,7 @@ function App() {
       const candidatesForThisLost = [];
 
       foundItems.forEach((found) => {
-        const sim = computeItemSimilarity(lost, found);
+        const sim = computeItemSimilarity(lost, found, similarityThreshold);
         if (sim.isMatch) {
           candidatesForThisLost.push({
             lost,
@@ -1185,7 +1399,7 @@ function App() {
     });
 
     return allMatches;
-  }, [items, currentUser]);
+  }, [items, currentUser, similarityThreshold]);
 
   const userDirectMatches = useMemo(() => {
     return dynamicMatches.filter((m) => m.isDirectUserMatch);
@@ -1208,6 +1422,57 @@ function App() {
     }
     return dynamicMatches;
   }, [claimsFilter, dynamicMatches, userDirectMatches]);
+
+  // NFR-26: Notification Reliability — trigger match alert only once per unique match pair
+  useEffect(() => {
+    if (!currentUser || userDirectMatches.length === 0) return;
+
+    const unseen = userDirectMatches.filter((m) => {
+      const key = `${currentUser.email.toLowerCase()}::${m.lostItem.id}::${m.foundItem.id}`;
+      return !notifiedMatchKeysRef.current.has(key);
+    });
+
+    if (unseen.length === 0) return;
+
+    unseen.forEach((m) => {
+      const key = `${currentUser.email.toLowerCase()}::${m.lostItem.id}::${m.foundItem.id}`;
+      notifiedMatchKeysRef.current.add(key);
+    });
+    try {
+      localStorage.setItem(
+        'findly_notified_match_keys',
+        JSON.stringify(Array.from(notifiedMatchKeysRef.current).slice(-200))
+      );
+    } catch (e) {}
+
+    // Also persist deduplication state on backend and only fire toast for brand-new pairs
+    fetch(`${API_BASE}/api/notifications/dedup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientEmail: currentUser.email,
+        matches: unseen.map((m) => ({
+          lostId: m.lostItem.id,
+          foundId: m.foundItem.id,
+          score: m.score,
+        })),
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : { newNotifications: unseen }))
+      .then((data) => {
+        const freshCount = data?.newNotifications?.length ?? unseen.length;
+        if (freshCount > 0) {
+          showToast(
+            `New AI Match Alert: ${freshCount} match candidate${freshCount > 1 ? 's' : ''} detected for your report!`
+          );
+        }
+      })
+      .catch(() => {
+        showToast(
+          `New AI Match Alert: ${unseen.length} match candidate${unseen.length > 1 ? 's' : ''} detected for your report!`
+        );
+      });
+  }, [currentUser, userDirectMatches]);
 
   // Thumbnail renderer (Flat Vector Graphic on Pastel Background with fail-safe vector fallback)
   const renderItemThumbnail = (item, size = 'sm') => {
@@ -1782,6 +2047,39 @@ function App() {
                   Browse items
                 </h1>
 
+                {/* NFR-25: Failed Upload Recovery Banner */}
+                {failedUploads.length > 0 && (
+                  <div className="bg-[#FCEAE6] border border-[#F5D5CE] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+                    <div className="flex items-start sm:items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-[#C24136] shrink-0" />
+                      <div className="text-xs text-[#8C3A27]">
+                        <strong className="block text-[#1A1D1B]">
+                          {failedUploads.length} pending upload{failedUploads.length > 1 ? 's' : ''} failed due to connection error
+                        </strong>
+                        <span>
+                          Queued locally: {failedUploads.map((f) => `${f.title} (${f.id})`).join(', ')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => failedUploads.forEach((entry) => retryFailedUpload(entry))}
+                        disabled={retryingUploadId !== null}
+                        className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${retryingUploadId ? 'animate-spin' : ''}`} />
+                        <span>{retryingUploadId ? 'Retrying...' : 'Retry Upload'}</span>
+                      </button>
+                      <button
+                        onClick={() => setFailedUploads([])}
+                        className="bg-white border border-[#EDEAE2] text-[#6C726D] hover:text-[#1A1D1B] text-xs font-medium px-3 py-2 rounded-xl cursor-pointer"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Main Content Layout: Sidebar Filter + Items List */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2 relative z-10">
                   {/* Left Column: Filter Sidebar */}
@@ -1997,6 +2295,32 @@ function App() {
                   <span className="text-[#9CA3AF]">2 Review</span>
                   <span className="text-[#9CA3AF]">3 Done</span>
                 </div>
+
+                {/* NFR-25: Failed Upload Recovery Banner */}
+                {failedUploads.length > 0 && (
+                  <div className="bg-[#FCEAE6] border border-[#F5D5CE] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+                    <div className="flex items-start sm:items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-[#C24136] shrink-0" />
+                      <div className="text-xs text-[#8C3A27]">
+                        <strong className="block text-[#1A1D1B]">
+                          Upload recovery ready ({failedUploads.length} unsynced report{failedUploads.length > 1 ? 's' : ''})
+                        </strong>
+                        <span>
+                          Your report and photo are preserved locally. Click Retry once connected.
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => failedUploads.forEach((entry) => retryFailedUpload(entry))}
+                      disabled={retryingUploadId !== null}
+                      className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-60"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${retryingUploadId ? 'animate-spin' : ''}`} />
+                      <span>{retryingUploadId ? 'Retrying...' : 'Retry Upload'}</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Report Form Layout: Left Form + Right Sidebar Cards */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2 relative z-10">
@@ -2423,32 +2747,141 @@ function App() {
                   </div>
                 )}
 
-                {/* Claims Filter Pills */}
-                <div className="flex items-center gap-2 pt-1 border-b border-[#EDEAE2] pb-3">
+                {/* Claims Filter Pills + NFR-24 / NFR-30 Operator Controls Toggle */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-b border-[#EDEAE2] pb-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setClaimsFilter('all')}
+                      className={`text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors ${claimsFilter === 'all'
+                        ? 'bg-[#1E3A2F] text-white'
+                        : 'bg-white text-[#6C726D] border border-[#EDEAE2] hover:text-[#1A1D1B]'
+                        }`}
+                    >
+                      All match alerts ({dynamicMatches.length})
+                    </button>
+                    <button
+                      onClick={() => setClaimsFilter('my')}
+                      className={`text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${claimsFilter === 'my'
+                        ? 'bg-[#1E3A2F] text-white'
+                        : 'bg-white text-[#6C726D] border border-[#EDEAE2] hover:text-[#1A1D1B]'
+                        }`}
+                    >
+                      <span>My reports only</span>
+                      {userDirectMatches.length > 0 && (
+                        <span className="bg-[#C24136] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                          {userDirectMatches.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
                   <button
-                    onClick={() => setClaimsFilter('all')}
-                    className={`text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors ${claimsFilter === 'all'
-                      ? 'bg-[#1E3A2F] text-white'
-                      : 'bg-white text-[#6C726D] border border-[#EDEAE2] hover:text-[#1A1D1B]'
-                      }`}
+                    onClick={() => {
+                      const next = !showOperatorControls;
+                      setShowOperatorControls(next);
+                      if (next) fetchAuditLogs();
+                    }}
+                    className={`text-xs font-medium px-3.5 py-1.5 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer ${
+                      showOperatorControls
+                        ? 'bg-[#1E3A2F] text-white border-[#1E3A2F]'
+                        : 'bg-white text-[#4A4E4B] border-[#EDEAE2] hover:border-[#1E3A2F]'
+                    }`}
                   >
-                    All match alerts ({dynamicMatches.length})
-                  </button>
-                  <button
-                    onClick={() => setClaimsFilter('my')}
-                    className={`text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${claimsFilter === 'my'
-                      ? 'bg-[#1E3A2F] text-white'
-                      : 'bg-white text-[#6C726D] border border-[#EDEAE2] hover:text-[#1A1D1B]'
-                      }`}
-                  >
-                    <span>My reports only</span>
-                    {userDirectMatches.length > 0 && (
-                      <span className="bg-[#C24136] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                        {userDirectMatches.length}
-                      </span>
-                    )}
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Threshold ({similarityThreshold}%) &amp; Audit Trail</span>
                   </button>
                 </div>
+
+                {/* Collapsible NFR-24 Threshold, NFR-28 Retention & NFR-30 Audit Trail Panel */}
+                {showOperatorControls && (
+                  <div className="bg-white rounded-2xl p-5 border border-[#EDEAE2] shadow-xs space-y-5 animate-in fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* NFR-24: Similarity Threshold Config */}
+                      <div className="bg-[#FAF9F5] p-4 rounded-xl border border-[#EDEAE2] space-y-2.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-[#1A1D1B] uppercase tracking-wider">
+                            Match Similarity Threshold (NFR-24)
+                          </span>
+                          <span className="font-mono font-bold text-[#2E5F46] bg-[#E1EFE6] px-2 py-0.5 rounded-full">
+                            {similarityThreshold}% min
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={40}
+                          max={95}
+                          step={5}
+                          value={similarityThreshold}
+                          onChange={(e) => updateThresholdSetting(Number(e.target.value))}
+                          className="w-full accent-[#1E3A2F] cursor-pointer"
+                        />
+                        <p className="text-[11px] text-[#6C726D]">
+                          Adjusts the minimum visual &amp; semantic confidence required to surface candidate matches.
+                        </p>
+                      </div>
+
+                      {/* NFR-28: Data Retention Policy & Cleanup */}
+                      <div className="bg-[#FAF9F5] p-4 rounded-xl border border-[#EDEAE2] flex flex-col justify-between gap-2.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-[#1A1D1B] uppercase tracking-wider">
+                            Auto Retention Policy (NFR-28)
+                          </span>
+                          <span className="font-mono font-semibold text-[#6C726D]">
+                            {retentionDays} days
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6C726D]">
+                          Expired records and stored upload images older than {retentionDays} days are purged automatically.
+                        </p>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={runRetentionCleanup}
+                            className="bg-white hover:bg-[#F0EDE6] border border-[#EDEAE2] text-[#1A1D1B] text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Run Cleanup Check
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* NFR-30: Activity Audit Trail */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#1A1D1B] uppercase tracking-wider">
+                          Activity Audit Trail (NFR-30)
+                        </span>
+                        <button
+                          onClick={fetchAuditLogs}
+                          className="text-[11px] text-[#2E5F46] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${loadingAuditLogs ? 'animate-spin' : ''}`} />
+                          <span>Refresh logs</span>
+                        </button>
+                      </div>
+                      <div className="max-h-44 overflow-y-auto rounded-xl border border-[#EDEAE2] divide-y divide-[#F0EDE6] text-xs">
+                        {auditLogs.length === 0 ? (
+                          <div className="p-3 text-center text-[#6C726D]">
+                            No recent audit events recorded yet.
+                          </div>
+                        ) : (
+                          auditLogs.map((log) => (
+                            <div key={log.logId} className="px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 bg-[#FAF9F5]/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-mono text-[10px] font-bold bg-[#E1EFE6] text-[#2E5F46] px-2 py-0.5 rounded">
+                                  {log.action}
+                                </span>
+                                <span className="text-[#1A1D1B] truncate">{log.details}</span>
+                              </div>
+                              <span className="text-[10.5px] font-mono text-[#6C726D] shrink-0">
+                                {log.actorRole} · {new Date(log.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Dynamic Candidate Match Pairs Grid or Dedicated Empty State */}
                 {displayedClaimsMatches.length === 0 ? (
@@ -2817,7 +3250,21 @@ function App() {
               <button
                 onClick={() => {
                   const claimCode = `CLM-${Math.floor(1000 + Math.random() * 9000)}`;
+                  const targetPair = activeClaimModal;
                   setActiveClaimModal(null);
+                  fetch(`${API_BASE}/api/audit-logs`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...(currentUser?.email ? { 'X-User-Email': currentUser.email } : {}),
+                      ...(currentUser?.role ? { 'X-User-Role': currentUser.role } : {}),
+                    },
+                    body: JSON.stringify({
+                      action: 'CLAIM_CONFIRMED',
+                      targetId: targetPair?.foundItem?.id || claimCode,
+                      details: `Official claim slip ${claimCode} logged for ${targetPair?.foundItem?.title || 'item'} (${targetPair?.matchType || ''})`,
+                    }),
+                  }).catch(() => {});
                   showToast(`Claim slip ${claimCode} confirmed! Present ticket at Proctor Desk AB-1 Room 104.`);
                 }}
                 className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-xs flex items-center gap-1.5"

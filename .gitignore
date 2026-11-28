@@ -69,3 +69,8 @@ data/images/*
 *.log
 ml-service/*.log
 
+# Runtime SQLite database & user-uploaded item photos
+database/*.db
+database/*.db-*
+database/uploads/
+

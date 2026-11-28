@@ -31,6 +31,15 @@ from image_matching.matcher import ImageMatcher
 from text_matching.tfidf_model import CampusTFIDFMatcher
 from text_matching.word2vec_model import CampusWord2Vec
 from text_matching.matcher import TextMatcher
+from storage_db import (
+    init_db,
+    list_items,
+    create_item,
+    update_item_status,
+    get_upload_path,
+    register_user,
+    authenticate_user,
+)
 
 # Paths
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
@@ -59,6 +68,10 @@ text_catalog_metadata = []
 def load_resources():
     global extractor, matcher, candidate_matrix, candidate_metadata
     global tfidf_model, w2v_model, text_matcher, catalog_tfidf_matrix, catalog_w2v_matrix, text_catalog_metadata
+
+    # 0. Initialize Persistent SQLite Database & Uploads Folder
+    init_db()
+    print("[OK] Initialized persistent SQLite database & uploads storage.")
 
     # 1. Vision Engine
     print("[*] Initializing MobileNetV2 Feature Extractor...")
@@ -339,10 +352,163 @@ async def predict_status(request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+async def get_items(request):
+    """Returns all shared Lost & Found items from SQLite with live image URLs."""
+    try:
+        base_url = str(request.base_url).rstrip("/")
+        items = list_items(base_url=base_url)
+        return JSONResponse({"status": "success", "count": len(items), "items": items})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def post_item(request):
+    """
+    Creates a new Lost or Found item in SQLite and saves any uploaded photo
+    to disk (`database/uploads/`) so all users across browsers/devices can view it.
+    """
+    global candidate_matrix, candidate_metadata
+    try:
+        base_url = str(request.base_url).rstrip("/")
+        content_type = request.headers.get("content-type", "")
+
+        image_bytes = None
+        original_filename = None
+        file_content_type = None
+
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            item_data = {k: v for k, v in form.items() if k != "file"}
+            uploaded_file = form.get("file")
+            if uploaded_file and hasattr(uploaded_file, "read"):
+                raw = await uploaded_file.read()
+                if raw:
+                    image_bytes = raw
+                    original_filename = getattr(uploaded_file, "filename", None)
+                    file_content_type = getattr(uploaded_file, "content_type", None)
+        else:
+            item_data = await request.json()
+
+        saved_item = create_item(
+            item_data=item_data,
+            image_bytes=image_bytes,
+            original_filename=original_filename,
+            content_type=file_content_type,
+            base_url=base_url,
+        )
+
+        # Dynamically append user-uploaded photo embedding to live MobileNetV2 vector memory
+        if image_bytes and extractor is not None:
+            try:
+                vec = extractor.extract(image_bytes)
+                if vec is not None:
+                    vec_2d = vec.reshape(1, -1).astype(np.float32)
+                    if candidate_matrix.shape[0] == 0:
+                        candidate_matrix = vec_2d
+                    else:
+                        candidate_matrix = np.vstack([candidate_matrix, vec_2d])
+                    photo_url = saved_item.get("userUploadedPhoto") or ""
+                    candidate_metadata.append({
+                        "item_id": saved_item["id"],
+                        "filename": os.path.basename(photo_url),
+                        "category": saved_item.get("category", "Other"),
+                        "image_url": photo_url,
+                    })
+            except Exception as emb_err:
+                print(f"[WARN] Could not index uploaded photo embedding: {emb_err}")
+
+        return JSONResponse({"status": "success", "item": saved_item}, status_code=201)
+
+    except ValueError as ve:
+        return JSONResponse({"error": str(ve)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def patch_item(request):
+    """Updates an item's recovery status ('Pending' | 'Recovered' | 'Closed')."""
+    try:
+        item_id = request.path_params["item_id"]
+        data = await request.json()
+        status = data.get("recoveryStatus")
+        if status not in ("Pending", "Recovered", "Closed"):
+            return JSONResponse({"error": "Invalid recoveryStatus value."}, status_code=400)
+
+        base_url = str(request.base_url).rstrip("/")
+        updated = update_item_status(item_id, status, base_url=base_url)
+        if updated is None:
+            return JSONResponse({"error": "Item not found."}, status_code=404)
+        return JSONResponse({"status": "success", "item": updated})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def serve_uploaded_image(request):
+    """Serves a user-uploaded item photo stored in `database/uploads/`."""
+    filename = request.path_params["filename"]
+    path = get_upload_path(filename)
+    if not path:
+        return JSONResponse({"error": "Uploaded image not found"}, status_code=404)
+
+    lower = filename.lower()
+    if lower.endswith(".png"):
+        media_type = "image/png"
+    elif lower.endswith(".webp"):
+        media_type = "image/webp"
+    elif lower.endswith(".gif"):
+        media_type = "image/gif"
+    else:
+        media_type = "image/jpeg"
+    return FileResponse(path, media_type=media_type)
+
+
+async def auth_register(request):
+    """Registers a new @gla.ac.in student account in SQLite."""
+    try:
+        data = await request.json()
+        name = (data.get("name") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or ""
+        roll_no = (data.get("rollNo") or "").strip()
+        dept = (data.get("dept") or "CSE (AI & ML)").strip()
+
+        if not name or not email or not email.endswith("@gla.ac.in") or len(password) < 6:
+            return JSONResponse({"error": "Valid name, @gla.ac.in email, and password (>=6 chars) required."}, status_code=400)
+
+        user = register_user(name, email, password, roll_no, dept)
+        return JSONResponse({"status": "success", "user": user}, status_code=201)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def auth_login(request):
+    """Authenticates a @gla.ac.in user against SQLite."""
+    try:
+        data = await request.json()
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or ""
+
+        if not email.endswith("@gla.ac.in") or len(password) < 6:
+            return JSONResponse({"error": "Valid @gla.ac.in email and password (>=6 chars) required."}, status_code=400)
+
+        user = authenticate_user(email, password)
+        return JSONResponse({"status": "success", "user": user})
+    except PermissionError as pe:
+        return JSONResponse({"error": str(pe)}, status_code=401)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # Routes
 routes = [
     Route("/", root_index, methods=["GET"]),
     Route("/api/health", health, methods=["GET"]),
+    Route("/api/items", get_items, methods=["GET"]),
+    Route("/api/items", post_item, methods=["POST"]),
+    Route("/api/items/{item_id}", patch_item, methods=["PATCH"]),
+    Route("/api/uploads/{filename}", serve_uploaded_image, methods=["GET"]),
+    Route("/api/auth/register", auth_register, methods=["POST"]),
+    Route("/api/auth/login", auth_login, methods=["POST"]),
     Route("/api/catalog/image/{filename}", get_catalog_image, methods=["GET"]),
     Route("/api/catalog/sample", sample_catalog, methods=["GET"]),
     Route("/api/match-image", match_image, methods=["POST"]),

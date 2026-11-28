@@ -4,6 +4,14 @@ import {
   User, Eye, EyeOff, Building2, ArrowRight
 } from 'lucide-react';
 
+const API_BASE =
+  typeof window !== 'undefined' &&
+  window.location.hostname &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? `http://${window.location.hostname}:8000`
+    : 'http://127.0.0.1:8000';
+
 export function validateGlaEmail(email) {
   if (!email || !email.trim()) {
     return { valid: false, message: 'Please enter your institutional email.' };
@@ -58,7 +66,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
   const emailValidation = activeEmail.length > 0 ? validateGlaEmail(activeEmail) : null;
 
   // Handle Sign In Submit
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -80,29 +88,50 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
     }
 
     const cleanEmail = signInEmail.trim().toLowerCase();
+    let userObj = null;
 
-    // Check against registered users in localStorage
-    const registeredUsers = JSON.parse(localStorage.getItem('findly_registered_users') || '[]');
-    const registeredMatch = registeredUsers.find((u) => u.email === cleanEmail);
-
-    if (registeredMatch && registeredMatch.password) {
-      if (registeredMatch.password !== signInPassword) {
-        setErrorMessage('Authentication failed: Incorrect password for this institutional account.');
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: signInPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Authentication failed.');
         return;
       }
+      if (data && data.user) {
+        userObj = data.user;
+      }
+    } catch (err) {
+      // Offline fallback to localStorage registry
     }
 
-    const displayName = registeredMatch ? registeredMatch.name : (cleanEmail.includes('.')
-      ? cleanEmail.split('@')[0].split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-      : cleanEmail.split('@')[0].toUpperCase());
+    if (!userObj) {
+      // Check against registered users in localStorage
+      const registeredUsers = JSON.parse(localStorage.getItem('findly_registered_users') || '[]');
+      const registeredMatch = registeredUsers.find((u) => u.email === cleanEmail);
 
-    const userObj = {
-      name: cleanEmail.includes('gopichand') ? 'Vemula Gopi Chand' : displayName,
-      email: cleanEmail,
-      role: cleanEmail.includes('proctor') ? 'Proctor Office Operator' : (registeredMatch?.role || 'Student'),
-      rollNo: registeredMatch?.rollNo || (cleanEmail.includes('cs21') ? '2215001234' : 'GLA-STU-8821'),
-      dept: registeredMatch?.dept || 'BTech CSE (AI & ML)',
-    };
+      if (registeredMatch && registeredMatch.password) {
+        if (registeredMatch.password !== signInPassword) {
+          setErrorMessage('Authentication failed: Incorrect password for this institutional account.');
+          return;
+        }
+      }
+
+      const displayName = registeredMatch ? registeredMatch.name : (cleanEmail.includes('.')
+        ? cleanEmail.split('@')[0].split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+        : cleanEmail.split('@')[0].toUpperCase());
+
+      userObj = {
+        name: cleanEmail.includes('gopichand') ? 'Vemula Gopi Chand' : displayName,
+        email: cleanEmail,
+        role: cleanEmail.includes('proctor') ? 'Proctor Office Operator' : (registeredMatch?.role || 'Student'),
+        rollNo: registeredMatch?.rollNo || (cleanEmail.includes('cs21') ? '2215001234' : 'GLA-STU-8821'),
+        dept: registeredMatch?.dept || 'BTech CSE (AI & ML)',
+      };
+    }
 
     localStorage.setItem('findly_user', JSON.stringify(userObj));
     setSuccessMessage(`Welcome back, ${userObj.name}! Authenticating institutional session...`);
@@ -119,7 +148,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
   };
 
   // Handle Registration Submit (Redirects to Sign In instead of auto-login)
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -159,13 +188,29 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
     const newUser = {
       name: regName.trim(),
       email: cleanEmail,
-      password: regPassword, // Stored for verification upon login
+      password: regPassword, // Stored for fallback verification if offline
       role: 'Student',
       rollNo: regRoll.trim(),
       dept: regDept,
     };
 
-    // Save user to registered campus registry
+    try {
+      await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUser.name,
+          email: newUser.email,
+          password: regPassword,
+          rollNo: newUser.rollNo,
+          dept: newUser.dept,
+        }),
+      });
+    } catch (err) {
+      // Offline fallback saves to localStorage below
+    }
+
+    // Save user to registered campus registry fallback
     const existingUsers = JSON.parse(localStorage.getItem('findly_registered_users') || '[]');
     const updatedUsers = existingUsers.filter((u) => u.email !== cleanEmail);
     updatedUsers.push(newUser);

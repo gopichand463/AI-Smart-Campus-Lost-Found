@@ -127,7 +127,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
       userObj = {
         name: cleanEmail.includes('gopichand') ? 'Vemula Gopi Chand' : displayName,
         email: cleanEmail,
-        role: cleanEmail.includes('proctor') ? 'Proctor Office Operator' : (registeredMatch?.role || 'Student'),
+        role: (cleanEmail.includes('proctor') || cleanEmail.includes('gopichand') || cleanEmail.includes('operator'))
+          ? 'Proctor Office Operator'
+          : (registeredMatch?.role || 'Student'),
         rollNo: registeredMatch?.rollNo || (cleanEmail.includes('cs21') ? '2215001234' : 'GLA-STU-8821'),
         dept: registeredMatch?.dept || 'BTech CSE (AI & ML)',
       };

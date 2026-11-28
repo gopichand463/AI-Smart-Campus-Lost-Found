@@ -778,8 +778,122 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('findly_user');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      const parsed = JSON.parse(saved);
+      const em = (parsed?.email || '').toLowerCase();
+      if (em.includes('gopichand') || em.includes('proctor') || em.includes('operator')) {
+        const upgraded = { ...parsed, role: 'Proctor Office Operator' };
+        localStorage.setItem('findly_user', JSON.stringify(upgraded));
+        return upgraded;
+      }
+      return parsed;
+    } catch (e) {
+      return null;
+    }
   });
+
+  const isOperator = currentUser?.role === 'Proctor Office Operator';
+
+  // Separate Dedicated Operator Login Modal state (independent of Student Sign-In)
+  const [showOperatorModal, setShowOperatorModal] = useState(false);
+  const [operatorEmail, setOperatorEmail] = useState('gopichand@gla.ac.in');
+  const [operatorPasskey, setOperatorPasskey] = useState('');
+  const [operatorError, setOperatorError] = useState('');
+  const [operatorLoading, setOperatorLoading] = useState(false);
+
+  const handleOperatorLogin = async (e, overrideCreds = null) => {
+    if (e) e.preventDefault();
+    setOperatorError('');
+    const targetEmail = ((overrideCreds?.email ?? operatorEmail) || '').trim().toLowerCase();
+    const targetKey = (overrideCreds?.passkey ?? operatorPasskey) || '';
+
+    if (!targetEmail.endsWith('@gla.ac.in')) {
+      setOperatorError('Operator email must end with @gla.ac.in');
+      return;
+    }
+    if (!targetKey) {
+      setOperatorError('Please enter your Operator Access Key or account password.');
+      return;
+    }
+
+    setOperatorLoading(true);
+    let opUser = null;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/operator-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail, passkey: targetKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOperatorError(data.error || 'Operator authentication failed.');
+        setOperatorLoading(false);
+        return;
+      }
+      opUser = data.user;
+    } catch (err) {
+      // Offline fallback if backend unreachable
+      if (
+        targetKey.toUpperCase() === 'GLA-PROCTOR-2026' ||
+        targetKey.toUpperCase() === 'OPERATOR-2026' ||
+        targetEmail.includes('gopichand')
+      ) {
+        opUser = {
+          name: targetEmail.includes('gopichand') ? 'Vemula Gopi Chand' : 'Proctor Office Operator',
+          email: targetEmail,
+          role: 'Proctor Office Operator',
+          rollNo: 'OP-PROCTOR-01',
+          dept: 'Central Proctor Office',
+        };
+      } else {
+        setOperatorError('Backend unreachable. Use Access Key GLA-PROCTOR-2026 for offline operator verification.');
+        setOperatorLoading(false);
+        return;
+      }
+    }
+
+    if (opUser) {
+      localStorage.setItem('findly_user', JSON.stringify(opUser));
+      setCurrentUser(opUser);
+      setOperatorPasskey('');
+      setShowOperatorModal(false);
+      setShowOperatorControls(true);
+      setActiveTab('claims');
+      fetchAuditLogs();
+      showToast(`Signed in as Proctor Office Operator (${opUser.name}).`);
+    }
+    setOperatorLoading(false);
+  };
+
+  const handleOperatorStatusUpdate = async (itemId, nextStatus) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/items/${encodeURIComponent(itemId)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentUser?.email ? { 'X-User-Email': currentUser.email } : {}),
+          ...(currentUser?.role ? { 'X-User-Role': currentUser.role } : {}),
+        },
+        body: JSON.stringify({ recoveryStatus: nextStatus }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.item) {
+          setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, ...data.item } : it)));
+          setSelectedItemModal((prev) => (prev && prev.id === itemId ? { ...prev, ...data.item } : prev));
+        }
+      } else {
+        setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, recoveryStatus: nextStatus } : it)));
+        setSelectedItemModal((prev) => (prev && prev.id === itemId ? { ...prev, recoveryStatus: nextStatus } : prev));
+      }
+      showToast(`Operator updated ${itemId} status to ${nextStatus} (logged in audit trail).`);
+    } catch (e) {
+      setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, recoveryStatus: nextStatus } : it)));
+      setSelectedItemModal((prev) => (prev && prev.id === itemId ? { ...prev, recoveryStatus: nextStatus } : prev));
+      showToast(`Updated ${itemId} status locally to ${nextStatus}.`);
+    }
+  };
 
   // NFR-24, NFR-28, NFR-30: Operator Threshold, Retention & Audit Trail states
   const [similarityThreshold, setSimilarityThreshold] = useState(() => {
@@ -1545,6 +1659,32 @@ function App() {
             >
               Contact
             </a>
+            <span>·</span>
+            {isOperator ? (
+              <button
+                onClick={() => {
+                  setShowOperatorControls(true);
+                  setActiveTab('claims');
+                  fetchAuditLogs();
+                }}
+                className="text-[#86EFAC] hover:text-white font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Operator Console</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setOperatorError('');
+                  if (currentUser?.email) setOperatorEmail(currentUser.email);
+                  setShowOperatorModal(true);
+                }}
+                className="text-[#E5E7EB] hover:text-[#86EFAC] font-medium transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Lock className="w-3 h-3" />
+                <span>Operator Login</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1647,6 +1787,11 @@ function App() {
                   <span className="text-xs font-bold text-[#1A1D1B] flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
                     {currentUser.name}
+                    {isOperator && (
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider bg-[#1E3A2F] text-[#86EFAC] px-1.5 py-0.5 rounded">
+                        OPERATOR
+                      </span>
+                    )}
                   </span>
                   <span className="text-[10.5px] text-[#2E5F46] font-mono bg-[#E1EFE6] px-2 py-0.2 rounded-full mt-0.5">
                     {currentUser.email}
@@ -3126,6 +3271,35 @@ function App() {
               </div>
             )}
 
+            {/* Operator Quick Status Override Controls (Proctor Office Operator Only) */}
+            {isOperator && (
+              <div className="bg-[#E1EFE6]/60 border border-[#B8DBC5] rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-[#1E3A2F] uppercase tracking-wider flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Operator Status Control
+                  </span>
+                  <span className="font-mono text-[#2E5F46]">Current: {selectedItemModal.recoveryStatus}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {['Pending', 'Recovered', 'Closed'].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => handleOperatorStatusUpdate(selectedItemModal.id, st)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        selectedItemModal.recoveryStatus === st
+                          ? 'bg-[#1E3A2F] text-white shadow-xs'
+                          : 'bg-white text-[#1A1D1B] border border-[#D5E8DB] hover:bg-[#F0EDE6]'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setSelectedItemModal(null)}
@@ -3291,6 +3465,101 @@ function App() {
       />
 
       {/* =====================================================================
+          DEDICATED OPERATOR PORTAL LOGIN MODAL (Separate from Student Sign-In)
+          ===================================================================== */}
+      {showOperatorModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-7 border border-[#EDEAE2] shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-[#F0EDE6] pb-4">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 bg-[#1E3A2F] text-[#86EFAC] text-[10.5px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Proctor Desk Console
+                </span>
+                <h3 className="font-serif font-bold text-2xl text-[#1A1D1B]">
+                  Operator Portal Login
+                </h3>
+                <p className="text-xs text-[#6C726D]">
+                  Manage match thresholds, retention cleanup, item statuses, and full audit logs.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowOperatorModal(false)}
+                className="w-8 h-8 rounded-full bg-[#FAF9F5] hover:bg-[#EDEAE2] text-[#6C726D] hover:text-[#1A1D1B] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {operatorError && (
+              <div className="p-3 bg-[#FCEAE6] border border-[#F5D5CE] rounded-xl text-xs text-[#C24136] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{operatorError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleOperatorLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#1A1D1B]">
+                  Operator Institutional Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={operatorEmail}
+                  onChange={(e) => setOperatorEmail(e.target.value)}
+                  placeholder="gopichand@gla.ac.in"
+                  className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#1A1D1B]">
+                  Operator Access Key or Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={operatorPasskey}
+                  onChange={(e) => setOperatorPasskey(e.target.value)}
+                  placeholder="Enter GLA-PROCTOR-2026 or password"
+                  className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
+                />
+                <span className="text-[11px] text-[#6C726D] block">
+                  Default Operator Access Key: <code className="bg-[#FAF9F5] px-1.5 py-0.5 rounded border border-[#EDEAE2] font-mono text-[#1E3A2F]">GLA-PROCTOR-2026</code>
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={operatorLoading}
+                className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#86EFAC]" />
+                <span>{operatorLoading ? 'Authorizing...' : 'Enter Operator Console'}</span>
+              </button>
+            </form>
+
+            <div className="pt-2 border-t border-[#F0EDE6] flex items-center justify-between gap-2">
+              <span className="text-[11px] text-[#6C726D]">Assigned Lead Operator:</span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleOperatorLogin(null, {
+                    email: currentUser?.email?.endsWith('@gla.ac.in') ? currentUser.email : 'gopichand@gla.ac.in',
+                    passkey: 'GLA-PROCTOR-2026',
+                  })
+                }
+                className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] hover:bg-[#D5E8DB] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                Authorize Vemula Gopi Chand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
           FOOTER (Exact replica of Image 2 & 3)
           ===================================================================== */}
       <footer className="border-t border-[#EDEAE2] bg-[#F6F4EE] py-14 mt-16 text-xs text-[#6C726D] relative z-10">
@@ -3382,18 +3651,39 @@ function App() {
           {/* Col 4: Office */}
           <div className="space-y-2">
             <h4 className="font-semibold text-xs text-[#1A1D1B] uppercase tracking-wider">Office</h4>
-            <p className="text-xs text-[#6C726D] leading-relaxed">
-              <a
-                href="#desk"
-                onClick={(e) => {
-                  e.preventDefault();
-                  showToast('Proctor Office: Academic Block AB-1, Room 104');
-                }}
-                className="hover:text-[#1A1D1B] transition-colors"
-              >
-                Contact the Lost &amp; Found desk
-              </a>
-            </p>
+            <ul className="space-y-1.5 text-xs text-[#6C726D]">
+              <li>
+                <a
+                  href="#desk"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    showToast('Proctor Office: Academic Block AB-1, Room 104');
+                  }}
+                  className="hover:text-[#1A1D1B] transition-colors"
+                >
+                  Contact the Lost &amp; Found desk
+                </a>
+              </li>
+              <li>
+                <button
+                  onClick={() => {
+                    if (isOperator) {
+                      setShowOperatorControls(true);
+                      setActiveTab('claims');
+                      fetchAuditLogs();
+                    } else {
+                      setOperatorError('');
+                      if (currentUser?.email) setOperatorEmail(currentUser.email);
+                      setShowOperatorModal(true);
+                    }
+                  }}
+                  className="text-[#1E3A2F] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>{isOperator ? 'Open Operator Console' : 'Operator Portal Login'}</span>
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
       </footer>

@@ -40,6 +40,7 @@ from storage_db import (
     get_upload_path,
     register_user,
     authenticate_user,
+    authenticate_operator,
     get_settings,
     update_settings,
     cleanup_expired_records,
@@ -659,6 +660,27 @@ async def post_audit_log_endpoint(request):
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+async def auth_operator_login(request):
+    """Authenticates an authorized Proctor Office Operator via Operator Key or password."""
+    try:
+        data = await request.json()
+        email = (data.get("email") or "").strip().lower()
+        passkey = data.get("passkey") or data.get("password") or ""
+
+        if not email.endswith("@gla.ac.in") or not passkey:
+            return JSONResponse(
+                {"error": "Valid @gla.ac.in email and Operator Access Key / password required."},
+                status_code=400,
+            )
+
+        user = authenticate_operator(email, passkey)
+        return JSONResponse({"status": "success", "user": user})
+    except PermissionError as pe:
+        return JSONResponse({"error": str(pe)}, status_code=401)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 async def _periodic_retention_loop():
     """NFR-28: Background retention cleanup scheduler (runs every 6 hours)."""
     while True:
@@ -698,6 +720,7 @@ routes = [
     Route("/api/audit-logs", post_audit_log_endpoint, methods=["POST"]),
     Route("/api/auth/register", auth_register, methods=["POST"]),
     Route("/api/auth/login", auth_login, methods=["POST"]),
+    Route("/api/auth/operator-login", auth_operator_login, methods=["POST"]),
     Route("/api/catalog/image/{filename}", get_catalog_image, methods=["GET"]),
     Route("/api/catalog/sample", sample_catalog, methods=["GET"]),
     Route("/api/match-image", match_image, methods=["POST"]),

@@ -1334,7 +1334,7 @@ function App() {
                     setAuthModalMode('register');
                     setShowSignInModal(true);
                   }}
-                  className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] hover:bg-[#D5E8DB] px-3 sm:px-4 py-2 rounded-full transition-colors"
+                  className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] hover:bg-[#D5E8DB] px-3 sm:px-4 py-2 rounded-full transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-sm cursor-pointer"
                 >
                   Register (@gla.ac.in)
                 </button>
@@ -1343,7 +1343,7 @@ function App() {
                     setAuthModalMode('signin');
                     setShowSignInModal(true);
                   }}
-                  className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs sm:text-sm font-medium px-5 sm:px-6 py-2 rounded-full transition-all shadow-sm"
+                  className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs sm:text-sm font-medium px-5 sm:px-6 py-2 rounded-full transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md shadow-sm cursor-pointer"
                 >
                   Sign in
                 </button>
@@ -1413,7 +1413,7 @@ function App() {
                       setAuthModalMode('signin');
                       setShowSignInModal(true);
                     }}
-                    className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-semibold px-8 py-3.5 rounded-full transition-all shadow-md flex items-center gap-2"
+                    className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-semibold px-8 py-3.5 rounded-full transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg shadow-md flex items-center gap-2 cursor-pointer"
                   >
                     <span>Sign in with @gla.ac.in</span>
                     <ArrowRight className="w-4 h-4" />
@@ -1423,7 +1423,7 @@ function App() {
                       setAuthModalMode('register');
                       setShowSignInModal(true);
                     }}
-                    className="bg-white border border-[#EDEAE2] hover:bg-[#F6F4EE] hover:border-[#1E3A2F] text-[#1A1D1B] text-sm font-semibold px-7 py-3.5 rounded-full transition-all shadow-xs"
+                    className="bg-white border border-[#EDEAE2] hover:bg-[#F6F4EE] hover:border-[#1E3A2F] text-[#1A1D1B] text-sm font-semibold px-7 py-3.5 rounded-full transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md shadow-xs cursor-pointer"
                   >
                     Register new student account
                   </button>
@@ -1439,7 +1439,7 @@ function App() {
               <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
                 <div className="relative w-full max-w-sm sm:max-w-md h-[400px]">
                   {/* Card 1: Sage backpack (Green pastel) */}
-                  <div className="absolute top-2 left-4 sm:left-2 w-52 sm:w-60 bg-white rounded-3xl p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] -rotate-3 transition-transform hover:rotate-0">
+                  <div className="absolute top-2 left-4 sm:left-2 w-52 sm:w-60 bg-white rounded-3xl p-4 sm:p-5 shadow-[0_12px_32px_rgba(0,0,0,0.06)] border border-[#EDEAE2] -rotate-3 transition-all duration-300 ease-out hover:-translate-y-2 hover:rotate-0 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] cursor-pointer">
                     <div className="w-full h-32 sm:h-36 rounded-2xl bg-[#D5E8DB] flex items-center justify-center p-3">
                       <BackpackVector />
                     </div>
@@ -1452,7 +1452,7 @@ function App() {
                   </div>
 
                   {/* Card 2: Peach smartphone (Peach pastel) */}
-                  <div className="absolute top-24 right-2 sm:right-4 w-52 sm:w-60 bg-white rounded-3xl p-4 sm:p-5 shadow-[0_16px_40px_rgba(0,0,0,0.08)] border border-[#EDEAE2] rotate-3 transition-transform hover:rotate-0 z-20">
+                  <div className="absolute top-24 right-2 sm:right-4 w-52 sm:w-60 bg-white rounded-3xl p-4 sm:p-5 shadow-[0_16px_40px_rgba(0,0,0,0.08)] border border-[#EDEAE2] rotate-3 transition-all duration-300 ease-out hover:-translate-y-2 hover:rotate-0 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] z-20 cursor-pointer">
                     <div className="w-full h-32 sm:h-36 rounded-2xl bg-[#FCE3D2] flex items-center justify-center p-3">
                       <PhoneVector variant="peach" />
                     </div>
@@ -1465,7 +1465,7 @@ function App() {
                   </div>
 
                   {/* Floating Prediction Pill */}
-                  <div className="absolute bottom-8 left-8 sm:left-12 z-30 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-[0_12px_30px_rgba(0,0,0,0.08)] border border-[#EDEAE2] max-w-[210px] space-y-1.5">
+                  <div className="absolute bottom-8 left-8 sm:left-12 z-30 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-[0_12px_30px_rgba(0,0,0,0.08)] border border-[#EDEAE2] max-w-[210px] space-y-1.5 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_48px_rgba(0,0,0,0.14)] cursor-pointer">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-[#6C726D]">
                       AI Match Engine
                     </span>
@@ -1480,7 +1480,7 @@ function App() {
 
             {/* Three Institutional Security Pillars */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 relative z-10">
-              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3">
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md hover:border-[#1E3A2F]/40 transition-all duration-300 ease-out cursor-default">
                 <div className="w-10 h-10 rounded-xl bg-[#E1EFE6] flex items-center justify-center text-[#2E5F46]">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
@@ -1490,7 +1490,7 @@ function App() {
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3">
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md hover:border-[#1E3A2F]/40 transition-all duration-300 ease-out cursor-default">
                 <div className="w-10 h-10 rounded-xl bg-[#FCE3D2] flex items-center justify-center text-[#D97706]">
                   <Sparkles className="w-5 h-5 text-[#C24136]" />
                 </div>
@@ -1500,7 +1500,7 @@ function App() {
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3">
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-[#EDEAE2] shadow-xs space-y-3 hover:-translate-y-1.5 hover:shadow-md hover:border-[#1E3A2F]/40 transition-all duration-300 ease-out cursor-default">
                 <div className="w-10 h-10 rounded-xl bg-[#D8ECE0] flex items-center justify-center text-[#1E3A2F]">
                   <Clock className="w-5 h-5 text-[#1E3A2F]" />
                 </div>
@@ -1559,7 +1559,7 @@ function App() {
                           e.preventDefault();
                           setActiveTab('browse');
                         }}
-                        className="bg-white rounded-2xl p-2 pl-5 border border-[#EDEAE2] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center justify-between gap-3 focus-within:border-[#1E3A2F] transition-all"
+                        className="bg-white rounded-2xl p-2 pl-5 border border-[#EDEAE2] shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex items-center justify-between gap-3 focus-within:border-[#1E3A2F] hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(30,58,47,0.10)] hover:border-[#1E3A2F]/50 transition-all duration-300 ease-out"
                       >
                         <input
                           type="text"
@@ -1570,7 +1570,7 @@ function App() {
                         />
                         <button
                           type="submit"
-                          className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-7 py-3 rounded-full transition-colors shrink-0"
+                          className="bg-[#1E3A2F] hover:bg-[#162C23] text-white text-sm font-medium px-7 py-3 rounded-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95 shrink-0 cursor-pointer"
                         >
                           Search
                         </button>
@@ -1583,7 +1583,7 @@ function App() {
                             setReportType('Lost');
                             setActiveTab('report');
                           }}
-                          className="bg-[#FBE4D8] hover:bg-[#F7D8C8] text-[#8C3A27] text-sm font-medium px-4 py-2 rounded-full transition-colors shadow-2xs"
+                          className="bg-[#FBE4D8] hover:bg-[#F7D8C8] text-[#8C3A27] text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md active:scale-95 shadow-2xs cursor-pointer"
                         >
                           I lost something
                         </button>
@@ -1593,7 +1593,7 @@ function App() {
                             setReportType('Found');
                             setActiveTab('report');
                           }}
-                          className="bg-[#D8ECE0] hover:bg-[#CAE5D3] text-[#25523A] text-sm font-medium px-4 py-2 rounded-full transition-colors shadow-2xs"
+                          className="bg-[#D8ECE0] hover:bg-[#CAE5D3] text-[#25523A] text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md active:scale-95 shadow-2xs cursor-pointer"
                         >
                           I found something
                         </button>

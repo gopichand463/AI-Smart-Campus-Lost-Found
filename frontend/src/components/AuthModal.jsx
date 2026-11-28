@@ -125,11 +125,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
         : cleanEmail.split('@')[0].toUpperCase());
 
       userObj = {
-        name: cleanEmail.includes('gopichand') ? 'Vemula Gopi Chand' : displayName,
+        name: displayName,
         email: cleanEmail,
-        role: (cleanEmail.includes('proctor') || cleanEmail.includes('gopichand') || cleanEmail.includes('operator'))
-          ? 'Proctor Office Operator'
-          : (registeredMatch?.role || 'Student'),
+        role: registeredMatch?.role || 'Student',
         rollNo: registeredMatch?.rollNo || (cleanEmail.includes('cs21') ? '2215001234' : 'GLA-STU-8821'),
         dept: registeredMatch?.dept || 'BTech CSE (AI & ML)',
       };
@@ -447,7 +445,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, showToast, 
                   <input
                     type="text"
                     required
-                    placeholder="Vemula Gopi Chand"
+                    placeholder="Name"
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
                     className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl pl-9 pr-3 py-2 text-xs text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"

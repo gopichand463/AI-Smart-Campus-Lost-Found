@@ -776,16 +776,18 @@ function App() {
     } catch (e) {}
   }, [reportType, browseSearch, currentPage, claimsFilter]);
 
+  const OFFICIAL_OPERATOR_EMAIL = 'gopichandvemula22@gmail.com';
+
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('findly_user');
     if (!saved) return null;
     try {
       const parsed = JSON.parse(saved);
       const em = (parsed?.email || '').toLowerCase();
-      if (em.includes('gopichand') || em.includes('proctor') || em.includes('operator')) {
-        const upgraded = { ...parsed, role: 'Proctor Office Operator' };
-        localStorage.setItem('findly_user', JSON.stringify(upgraded));
-        return upgraded;
+      if (parsed?.role === 'Proctor Office Operator' && em !== OFFICIAL_OPERATOR_EMAIL) {
+        const downgraded = { ...parsed, role: 'Student' };
+        localStorage.setItem('findly_user', JSON.stringify(downgraded));
+        return downgraded;
       }
       return parsed;
     } catch (e) {
@@ -793,37 +795,121 @@ function App() {
     }
   });
 
-  const isOperator = currentUser?.role === 'Proctor Office Operator';
+  const isOperator =
+    currentUser?.role === 'Proctor Office Operator' &&
+    (currentUser?.email || '').toLowerCase() === OFFICIAL_OPERATOR_EMAIL;
 
   // Separate Dedicated Operator Login Modal state (independent of Student Sign-In)
   const [showOperatorModal, setShowOperatorModal] = useState(false);
-  const [operatorEmail, setOperatorEmail] = useState('gopichand@gla.ac.in');
+  const [operatorMode, setOperatorMode] = useState('login'); // 'login' | 'setup'
+  const [operatorPasswordConfigured, setOperatorPasswordConfigured] = useState(false);
+  const [operatorEmail, setOperatorEmail] = useState('');
   const [operatorPasskey, setOperatorPasskey] = useState('');
+  const [operatorConfirmPassword, setOperatorConfirmPassword] = useState('');
+  const [operatorCurrentPassword, setOperatorCurrentPassword] = useState('');
+  const [operatorShowPassword, setOperatorShowPassword] = useState(false);
   const [operatorError, setOperatorError] = useState('');
+  const [operatorSuccess, setOperatorSuccess] = useState('');
   const [operatorLoading, setOperatorLoading] = useState(false);
 
-  const handleOperatorLogin = async (e, overrideCreds = null) => {
-    if (e) e.preventDefault();
+  const openOperatorModal = useCallback(async () => {
+    setOperatorEmail('');
+    setOperatorPasskey('');
+    setOperatorConfirmPassword('');
+    setOperatorCurrentPassword('');
     setOperatorError('');
-    const targetEmail = ((overrideCreds?.email ?? operatorEmail) || '').trim().toLowerCase();
-    const targetKey = (overrideCreds?.passkey ?? operatorPasskey) || '';
+    setOperatorSuccess('');
+    setOperatorShowPassword(false);
+    setShowOperatorModal(true);
 
-    if (!targetEmail.endsWith('@gla.ac.in')) {
-      setOperatorError('Operator email must end with @gla.ac.in');
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/operator-status`);
+      if (res.ok) {
+        const data = await res.json();
+        const configured = Boolean(data?.passwordConfigured);
+        setOperatorPasswordConfigured(configured);
+        setOperatorMode(configured ? 'login' : 'setup');
+      }
+    } catch (e) {
+      // Keep current mode if offline
+    }
+  }, []);
+
+  const handleOperatorSetup = async (e) => {
+    e.preventDefault();
+    setOperatorError('');
+    setOperatorSuccess('');
+
+    const targetEmail = (operatorEmail || '').trim().toLowerCase();
+    if (targetEmail !== OFFICIAL_OPERATOR_EMAIL) {
+      setOperatorError('Access denied: Only the official operator email is authorized.');
       return;
     }
-    if (!targetKey) {
-      setOperatorError('Please enter your Operator Access Key or account password.');
+    if (!operatorPasskey || operatorPasskey.length < 6) {
+      setOperatorError('Operator password must be at least 6 characters long.');
+      return;
+    }
+    if (operatorPasskey !== operatorConfirmPassword) {
+      setOperatorError('Passwords do not match. Please verify both fields.');
       return;
     }
 
     setOperatorLoading(true);
-    let opUser = null;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/operator-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: targetEmail,
+          password: operatorPasskey,
+          confirmPassword: operatorConfirmPassword,
+          currentPassword: operatorCurrentPassword || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOperatorError(data.error || 'Could not configure operator password.');
+        setOperatorLoading(false);
+        return;
+      }
+
+      setOperatorPasswordConfigured(true);
+      setOperatorPasskey('');
+      setOperatorConfirmPassword('');
+      setOperatorCurrentPassword('');
+      setOperatorEmail('');
+      setOperatorMode('login');
+      setOperatorSuccess('Operator password saved! Please sign in with your official email and new password.');
+      showToast('Operator password created! Sign in with your operator credentials.');
+    } catch (err) {
+      setOperatorError('Backend server is unreachable. Please ensure the server is running.');
+    } finally {
+      setOperatorLoading(false);
+    }
+  };
+
+  const handleOperatorLogin = async (e) => {
+    e.preventDefault();
+    setOperatorError('');
+    setOperatorSuccess('');
+    const targetEmail = (operatorEmail || '').trim().toLowerCase();
+    const targetPassword = operatorPasskey || '';
+
+    if (targetEmail !== OFFICIAL_OPERATOR_EMAIL) {
+      setOperatorError('Access denied: Only the official operator email is authorized.');
+      return;
+    }
+    if (!targetPassword) {
+      setOperatorError('Please enter your operator password.');
+      return;
+    }
+
+    setOperatorLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/auth/operator-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: targetEmail, passkey: targetKey }),
+        body: JSON.stringify({ email: targetEmail, password: targetPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -831,39 +917,22 @@ function App() {
         setOperatorLoading(false);
         return;
       }
-      opUser = data.user;
-    } catch (err) {
-      // Offline fallback if backend unreachable
-      if (
-        targetKey.toUpperCase() === 'GLA-PROCTOR-2026' ||
-        targetKey.toUpperCase() === 'OPERATOR-2026' ||
-        targetEmail.includes('gopichand')
-      ) {
-        opUser = {
-          name: targetEmail.includes('gopichand') ? 'Vemula Gopi Chand' : 'Proctor Office Operator',
-          email: targetEmail,
-          role: 'Proctor Office Operator',
-          rollNo: 'OP-PROCTOR-01',
-          dept: 'Central Proctor Office',
-        };
-      } else {
-        setOperatorError('Backend unreachable. Use Access Key GLA-PROCTOR-2026 for offline operator verification.');
-        setOperatorLoading(false);
-        return;
+      if (data?.user) {
+        localStorage.setItem('findly_user', JSON.stringify(data.user));
+        setCurrentUser(data.user);
+        setOperatorEmail('');
+        setOperatorPasskey('');
+        setShowOperatorModal(false);
+        setShowOperatorControls(true);
+        setActiveTab('claims');
+        fetchAuditLogs();
+        showToast(`Signed in as Proctor Office Operator (${data.user.name}).`);
       }
+    } catch (err) {
+      setOperatorError('Backend server is unreachable. Please ensure the server is running.');
+    } finally {
+      setOperatorLoading(false);
     }
-
-    if (opUser) {
-      localStorage.setItem('findly_user', JSON.stringify(opUser));
-      setCurrentUser(opUser);
-      setOperatorPasskey('');
-      setShowOperatorModal(false);
-      setShowOperatorControls(true);
-      setActiveTab('claims');
-      fetchAuditLogs();
-      showToast(`Signed in as Proctor Office Operator (${opUser.name}).`);
-    }
-    setOperatorLoading(false);
   };
 
   const handleOperatorStatusUpdate = async (itemId, nextStatus) => {
@@ -1674,11 +1743,7 @@ function App() {
               </button>
             ) : (
               <button
-                onClick={() => {
-                  setOperatorError('');
-                  if (currentUser?.email) setOperatorEmail(currentUser.email);
-                  setShowOperatorModal(true);
-                }}
+                onClick={openOperatorModal}
                 className="text-[#E5E7EB] hover:text-[#86EFAC] font-medium transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <Lock className="w-3 h-3" />
@@ -3477,10 +3542,10 @@ function App() {
                   Proctor Desk Console
                 </span>
                 <h3 className="font-serif font-bold text-2xl text-[#1A1D1B]">
-                  Operator Portal Login
+                  {operatorMode === 'setup' ? 'Create Operator Password' : 'Operator Portal Login'}
                 </h3>
                 <p className="text-xs text-[#6C726D]">
-                  Manage match thresholds, retention cleanup, item statuses, and full audit logs.
+                  Restricted access for the authorized Proctor Office Operator only.
                 </p>
               </div>
               <button
@@ -3491,6 +3556,40 @@ function App() {
               </button>
             </div>
 
+            {/* Mode Switcher */}
+            <div className="flex bg-[#FAF9F5] p-1 rounded-2xl border border-[#EDEAE2]">
+              <button
+                type="button"
+                onClick={() => {
+                  setOperatorMode('login');
+                  setOperatorError('');
+                  setOperatorSuccess('');
+                }}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  operatorMode === 'login'
+                    ? 'bg-[#1E3A2F] text-white shadow-xs'
+                    : 'text-[#6C726D] hover:text-[#1A1D1B]'
+                }`}
+              >
+                Operator Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOperatorMode('setup');
+                  setOperatorError('');
+                  setOperatorSuccess('');
+                }}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  operatorMode === 'setup'
+                    ? 'bg-[#1E3A2F] text-white shadow-xs'
+                    : 'text-[#6C726D] hover:text-[#1A1D1B]'
+                }`}
+              >
+                {operatorPasswordConfigured ? 'Change Password' : 'Create Password'}
+              </button>
+            </div>
+
             {operatorError && (
               <div className="p-3 bg-[#FCEAE6] border border-[#F5D5CE] rounded-xl text-xs text-[#C24136] flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -3498,63 +3597,139 @@ function App() {
               </div>
             )}
 
-            <form onSubmit={handleOperatorLogin} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-[#1A1D1B]">
-                  Operator Institutional Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={operatorEmail}
-                  onChange={(e) => setOperatorEmail(e.target.value)}
-                  placeholder="gopichand@gla.ac.in"
-                  className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
-                />
+            {operatorSuccess && (
+              <div className="p-3 bg-[#E1EFE6] border border-[#D5E8DB] rounded-xl text-xs text-[#2E5F46] flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{operatorSuccess}</span>
               </div>
+            )}
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-[#1A1D1B]">
-                  Operator Access Key or Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={operatorPasskey}
-                  onChange={(e) => setOperatorPasskey(e.target.value)}
-                  placeholder="Enter GLA-PROCTOR-2026 or password"
-                  className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] focus:border-[#1E3A2F] focus:outline-none"
-                />
-                <span className="text-[11px] text-[#6C726D] block">
-                  Default Operator Access Key: <code className="bg-[#FAF9F5] px-1.5 py-0.5 rounded border border-[#EDEAE2] font-mono text-[#1E3A2F]">GLA-PROCTOR-2026</code>
-                </span>
-              </div>
+            {operatorMode === 'login' ? (
+              <form onSubmit={handleOperatorLogin} autoComplete="off" className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1A1D1B]">
+                    Official Operator Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="off"
+                    value={operatorEmail}
+                    onChange={(e) => setOperatorEmail(e.target.value)}
+                    placeholder="Enter official operator email"
+                    className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={operatorLoading}
-                className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-              >
-                <ShieldCheck className="w-4 h-4 text-[#86EFAC]" />
-                <span>{operatorLoading ? 'Authorizing...' : 'Enter Operator Console'}</span>
-              </button>
-            </form>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1A1D1B]">
+                    Operator Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={operatorShowPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      value={operatorPasskey}
+                      onChange={(e) => setOperatorPasskey(e.target.value)}
+                      placeholder="Enter your operator password"
+                      className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 pr-10 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setOperatorShowPassword(!operatorShowPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#6C726D] hover:text-[#1A1D1B]"
+                    >
+                      {operatorShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
 
-            <div className="pt-2 border-t border-[#F0EDE6] flex items-center justify-between gap-2">
-              <span className="text-[11px] text-[#6C726D]">Assigned Lead Operator:</span>
-              <button
-                type="button"
-                onClick={() =>
-                  handleOperatorLogin(null, {
-                    email: currentUser?.email?.endsWith('@gla.ac.in') ? currentUser.email : 'gopichand@gla.ac.in',
-                    passkey: 'GLA-PROCTOR-2026',
-                  })
-                }
-                className="text-xs font-semibold text-[#1E3A2F] bg-[#E1EFE6] hover:bg-[#D5E8DB] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-              >
-                Authorize Vemula Gopi Chand
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  disabled={operatorLoading}
+                  className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#86EFAC]" />
+                  <span>{operatorLoading ? 'Verifying...' : 'Sign In to Operator Console'}</span>
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleOperatorSetup} autoComplete="off" className="space-y-3.5">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1A1D1B]">
+                    Official Operator Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="off"
+                    value={operatorEmail}
+                    onChange={(e) => setOperatorEmail(e.target.value)}
+                    placeholder="Enter official operator email"
+                    className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
+                  />
+                </div>
+
+                {operatorPasswordConfigured && (
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-[#1A1D1B]">
+                      Current Operator Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      autoComplete="off"
+                      value={operatorCurrentPassword}
+                      onChange={(e) => setOperatorCurrentPassword(e.target.value)}
+                      placeholder="Enter current password"
+                      className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1A1D1B]">
+                    New Operator Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={operatorPasskey}
+                    onChange={(e) => setOperatorPasskey(e.target.value)}
+                    placeholder="Create password (min. 6 characters)"
+                    className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1A1D1B]">
+                    Confirm Operator Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={operatorConfirmPassword}
+                    onChange={(e) => setOperatorConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full bg-[#FAF9F5] border border-[#EDEAE2] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1D1B] placeholder-[#9CA3AF] focus:border-[#1E3A2F] focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={operatorLoading}
+                  className="w-full bg-[#1E3A2F] hover:bg-[#162C23] text-white text-xs font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  <Lock className="w-3.5 h-3.5 text-[#86EFAC]" />
+                  <span>{operatorLoading ? 'Saving...' : 'Save Operator Password'}</span>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -3672,9 +3847,7 @@ function App() {
                       setActiveTab('claims');
                       fetchAuditLogs();
                     } else {
-                      setOperatorError('');
-                      if (currentUser?.email) setOperatorEmail(currentUser.email);
-                      setShowOperatorModal(true);
+                      openOperatorModal();
                     }
                   }}
                   className="text-[#1E3A2F] hover:underline font-semibold flex items-center gap-1 cursor-pointer"

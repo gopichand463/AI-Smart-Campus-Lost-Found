@@ -33,6 +33,7 @@ UPLOADS_DIR = os.path.join(DATABASE_DIR, "uploads")
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
+OFFICIAL_OPERATOR_EMAIL = "gopichandvemula22@gmail.com"
 DEFAULT_SIMILARITY_PERCENT = 65
 DEFAULT_RETENTION_DAYS = 90
 
@@ -452,15 +453,15 @@ def init_db() -> None:
             (str(DEFAULT_RETENTION_DAYS), now),
         )
 
-        # Upgrade designated operator accounts (e.g. Vemula Gopi Chand / Proctor Office)
+        # Enforce official operator role assignment strictly for the authorized operator email
         conn.execute(
             """
             UPDATE users
-            SET role = 'Proctor Office Operator'
-            WHERE LOWER(email) LIKE '%gopichand%'
-               OR LOWER(email) LIKE '%proctor%'
-               OR LOWER(email) LIKE '%operator%'
-            """
+            SET role = 'Student'
+            WHERE role = 'Proctor Office Operator'
+              AND LOWER(email) != ?
+            """,
+            (OFFICIAL_OPERATOR_EMAIL,),
         )
 
         count = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
@@ -880,8 +881,7 @@ def get_upload_path(filename: str) -> Optional[str]:
 
 
 def _is_operator_email(email: str) -> bool:
-    clean = (email or "").strip().lower()
-    return any(tok in clean for tok in ("gopichand", "proctor", "operator"))
+    return (email or "").strip().lower() == OFFICIAL_OPERATOR_EMAIL
 
 
 def register_user(name: str, email: str, password: str, roll_no: str, dept: str) -> Dict[str, Any]:
@@ -938,7 +938,7 @@ def authenticate_user(email: str, password: str) -> Dict[str, Any]:
                 details="Incorrect password attempt blocked",
             )
             raise PermissionError("Authentication failed: Incorrect password for this institutional account.")
-        role = "Proctor Office Operator" if _is_operator_email(clean_email) else row["role"]
+        role = "Proctor Office Operator" if _is_operator_email(clean_email) else "Student"
         log_audit_event(
             action="USER_LOGIN",
             actor_email=clean_email,
@@ -959,10 +959,8 @@ def authenticate_user(email: str, password: str) -> Dict[str, Any]:
         display_name = " ".join(p.capitalize() for p in prefix.split(".") if p)
     else:
         display_name = prefix.upper()
-    if "gopichand" in clean_email:
-        display_name = "Vemula Gopi Chand"
 
-    role = "Proctor Office Operator" if _is_operator_email(clean_email) else "Student"
+    role = "Student"
     log_audit_event(
         action="USER_LOGIN",
         actor_email=clean_email,
@@ -980,58 +978,101 @@ def authenticate_user(email: str, password: str) -> Dict[str, Any]:
     }
 
 
-OPERATOR_ACCESS_KEYS = {"GLA-PROCTOR-2026", "OPERATOR-2026"}
+def get_operator_status() -> Dict[str, Any]:
+    """Checks whether the official operator account already has a password configured."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE email = ?",
+            (OFFICIAL_OPERATOR_EMAIL,),
+        ).fetchone()
+    return {
+        "passwordConfigured": bool(row and row["password_hash"]),
+    }
 
 
-def authenticate_operator(email: str, passkey: str) -> Dict[str, Any]:
-    """Authenticates a Proctor Office Operator via registered password or official Operator Key."""
+def setup_operator_password(
+    email: str,
+    new_password: str,
+    current_password: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Creates (or updates after verifying current password) the official operator password."""
     clean_email = (email or "").strip().lower()
-    key = (passkey or "").strip()
+    if clean_email != OFFICIAL_OPERATOR_EMAIL:
+        raise PermissionError("Only the official operator email is permitted.")
+    if not new_password or len(new_password) < 6:
+        raise ValueError("Operator password must be at least 6 characters long.")
 
     with _get_conn() as conn:
-        row = conn.execute("SELECT * FROM users WHERE email = ?", (clean_email,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (OFFICIAL_OPERATOR_EMAIL,)).fetchone()
+        if row is not None and row["password_hash"]:
+            if not current_password or not _verify_password(current_password, row["password_hash"]):
+                raise PermissionError("Operator password is already configured. Provide valid current password to change it.")
 
-    valid_key = key.upper() in OPERATOR_ACCESS_KEYS
-    valid_pw = bool(row is not None and _verify_password(key, row["password_hash"]))
+        pw_hash = _hash_password(new_password)
+        now = time.time()
+        conn.execute(
+            """
+            INSERT INTO users (email, name, password_hash, role, roll_no, dept, created_at)
+            VALUES (?, ?, ?, 'Proctor Office Operator', 'OP-PROCTOR-01', 'Central Proctor Office', ?)
+            ON CONFLICT(email) DO UPDATE SET
+                password_hash = excluded.password_hash,
+                role = 'Proctor Office Operator'
+            """,
+            (OFFICIAL_OPERATOR_EMAIL, "Vemula Gopi Chand", pw_hash, now),
+        )
+        conn.commit()
 
-    if not valid_key and not valid_pw:
-        if row is None and _is_operator_email(clean_email) and len(key) >= 6:
-            pass
-        else:
-            log_audit_event(
-                action="FAILED_OPERATOR_LOGIN",
-                actor_email=clean_email or "unknown@gla.ac.in",
-                actor_role="Proctor Office Operator",
-                target_id=clean_email,
-                details="Invalid operator access key or credentials",
-            )
-            raise PermissionError("Invalid Operator Access Key or password.")
-
-    display_name = row["name"] if row is not None else (
-        "Vemula Gopi Chand"
-        if "gopichand" in clean_email
-        else "Proctor Office Operator"
-        if "proctor" in clean_email
-        else " ".join(p.capitalize() for p in clean_email.split("@")[0].split(".") if p) or "Campus Operator"
+    log_audit_event(
+        action="OPERATOR_PASSWORD_SET",
+        actor_email=OFFICIAL_OPERATOR_EMAIL,
+        actor_role="Proctor Office Operator",
+        target_id=OFFICIAL_OPERATOR_EMAIL,
+        details="Official operator password configured",
     )
+    return {"passwordConfigured": True}
 
-    if row is not None and row["role"] != "Proctor Office Operator":
-        with _get_conn() as conn:
-            conn.execute("UPDATE users SET role = 'Proctor Office Operator' WHERE email = ?", (clean_email,))
-            conn.commit()
+
+def authenticate_operator(email: str, password: str) -> Dict[str, Any]:
+    """Strictly authenticates only the official operator email using their configured password."""
+    clean_email = (email or "").strip().lower()
+    if clean_email != OFFICIAL_OPERATOR_EMAIL:
+        log_audit_event(
+            action="FAILED_OPERATOR_LOGIN",
+            actor_email=clean_email or "unknown",
+            actor_role="Unauthorized",
+            target_id=clean_email,
+            details="Unauthorized email attempted operator login",
+        )
+        raise PermissionError("Access denied: Only the official operator email is authorized.")
+
+    with _get_conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (OFFICIAL_OPERATOR_EMAIL,)).fetchone()
+
+    if row is None or not row["password_hash"]:
+        raise ValueError("Operator password has not been created yet. Use 'Create Operator Password' first.")
+
+    if not _verify_password(password or "", row["password_hash"]):
+        log_audit_event(
+            action="FAILED_OPERATOR_LOGIN",
+            actor_email=OFFICIAL_OPERATOR_EMAIL,
+            actor_role="Proctor Office Operator",
+            target_id=OFFICIAL_OPERATOR_EMAIL,
+            details="Incorrect operator password attempt blocked",
+        )
+        raise PermissionError("Incorrect operator password.")
 
     log_audit_event(
         action="OPERATOR_LOGIN",
-        actor_email=clean_email,
+        actor_email=OFFICIAL_OPERATOR_EMAIL,
         actor_role="Proctor Office Operator",
-        target_id=clean_email,
+        target_id=OFFICIAL_OPERATOR_EMAIL,
         details="Authorized Proctor Office Operator console access",
     )
 
     return {
-        "name": display_name,
-        "email": clean_email,
+        "name": row["name"] or "Vemula Gopi Chand",
+        "email": OFFICIAL_OPERATOR_EMAIL,
         "role": "Proctor Office Operator",
-        "rollNo": (row["roll_no"] if row is not None else None) or "OP-PROCTOR-01",
-        "dept": (row["dept"] if row is not None else None) or "Central Proctor Office",
+        "rollNo": row["roll_no"] or "OP-PROCTOR-01",
+        "dept": row["dept"] or "Central Proctor Office",
     }

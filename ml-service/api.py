@@ -41,6 +41,8 @@ from storage_db import (
     register_user,
     authenticate_user,
     authenticate_operator,
+    get_operator_status,
+    setup_operator_password,
     get_settings,
     update_settings,
     cleanup_expired_records,
@@ -660,21 +662,50 @@ async def post_audit_log_endpoint(request):
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
-async def auth_operator_login(request):
-    """Authenticates an authorized Proctor Office Operator via Operator Key or password."""
+async def auth_operator_status(request):
+    """Returns whether the official operator password has been configured yet."""
+    return JSONResponse({"status": "success", **get_operator_status()})
+
+
+async def auth_operator_setup(request):
+    """Creates or updates the official operator password for gopichandvemula22@gmail.com."""
     try:
         data = await request.json()
         email = (data.get("email") or "").strip().lower()
-        passkey = data.get("passkey") or data.get("password") or ""
+        password = data.get("password") or ""
+        confirm_password = data.get("confirmPassword") or password
+        current_password = data.get("currentPassword")
 
-        if not email.endswith("@gla.ac.in") or not passkey:
+        if password != confirm_password:
+            return JSONResponse({"error": "Passwords do not match."}, status_code=400)
+
+        res = setup_operator_password(email, password, current_password=current_password)
+        return JSONResponse({"status": "success", **res}, status_code=201)
+    except PermissionError as pe:
+        return JSONResponse({"error": str(pe)}, status_code=403)
+    except ValueError as ve:
+        return JSONResponse({"error": str(ve)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def auth_operator_login(request):
+    """Strictly authenticates only the official operator email and configured password."""
+    try:
+        data = await request.json()
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or data.get("passkey") or ""
+
+        if not email or not password:
             return JSONResponse(
-                {"error": "Valid @gla.ac.in email and Operator Access Key / password required."},
+                {"error": "Operator email and password are required."},
                 status_code=400,
             )
 
-        user = authenticate_operator(email, passkey)
+        user = authenticate_operator(email, password)
         return JSONResponse({"status": "success", "user": user})
+    except ValueError as ve:
+        return JSONResponse({"error": str(ve)}, status_code=400)
     except PermissionError as pe:
         return JSONResponse({"error": str(pe)}, status_code=401)
     except Exception as e:
@@ -720,6 +751,8 @@ routes = [
     Route("/api/audit-logs", post_audit_log_endpoint, methods=["POST"]),
     Route("/api/auth/register", auth_register, methods=["POST"]),
     Route("/api/auth/login", auth_login, methods=["POST"]),
+    Route("/api/auth/operator-status", auth_operator_status, methods=["GET"]),
+    Route("/api/auth/operator-setup", auth_operator_setup, methods=["POST"]),
     Route("/api/auth/operator-login", auth_operator_login, methods=["POST"]),
     Route("/api/catalog/image/{filename}", get_catalog_image, methods=["GET"]),
     Route("/api/catalog/sample", sample_catalog, methods=["GET"]),

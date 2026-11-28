@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, MapPin, Calendar, Tag, ShieldCheck, AlertCircle, CheckCircle2,
   Clock, SlidersHorizontal, ArrowRight, Upload, X, Eye, EyeOff, Layers,
@@ -551,9 +551,67 @@ export function computeRecoveryPrediction(item = {}) {
   };
 }
 
+const VALID_TABS = new Set(['home', 'browse', 'report', 'analytics', 'claims']);
+
+function getInitialActiveTab() {
+  if (typeof window !== 'undefined') {
+    const hashTab = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+    if (VALID_TABS.has(hashTab)) return hashTab;
+    const savedTab =
+      sessionStorage.getItem('findly_active_tab') ||
+      localStorage.getItem('findly_active_tab');
+    if (savedTab && VALID_TABS.has(savedTab)) return savedTab;
+  }
+  return 'home';
+}
+
 function App() {
-  // Navigation: 'home' | 'browse' | 'report' | 'claims'
-  const [activeTab, setActiveTab] = useState('home');
+  // Navigation: 'home' | 'browse' | 'report' | 'analytics' | 'claims' (URL-hash + storage persisted)
+  const [activeTab, setActiveTabState] = useState(getInitialActiveTab);
+
+  const setActiveTab = useCallback((tab) => {
+    const nextTab = VALID_TABS.has(tab) ? tab : 'home';
+    setActiveTabState(nextTab);
+    try {
+      sessionStorage.setItem('findly_active_tab', nextTab);
+      localStorage.setItem('findly_active_tab', nextTab);
+      const targetHash = `#${nextTab}`;
+      if (window.location.hash !== targetHash) {
+        window.history.pushState(null, '', targetHash);
+      }
+    } catch (e) {
+      // Ignore history/storage restrictions
+    }
+  }, []);
+
+  // Keep activeTab synced on initial load & browser Back/Forward / manual hash changes
+  useEffect(() => {
+    try {
+      const targetHash = `#${activeTab}`;
+      if (!window.location.hash) {
+        window.history.replaceState(null, '', targetHash);
+      }
+      sessionStorage.setItem('findly_active_tab', activeTab);
+      localStorage.setItem('findly_active_tab', activeTab);
+    } catch (e) {}
+
+    const syncFromHash = () => {
+      const hashTab = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+      if (VALID_TABS.has(hashTab)) {
+        setActiveTabState(hashTab);
+        try {
+          sessionStorage.setItem('findly_active_tab', hashTab);
+          localStorage.setItem('findly_active_tab', hashTab);
+        } catch (e) {}
+      }
+    };
+    window.addEventListener('hashchange', syncFromHash);
+    window.addEventListener('popstate', syncFromHash);
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash);
+      window.removeEventListener('popstate', syncFromHash);
+    };
+  }, [activeTab]);
 
   // Master Items State (persisted cleanly in localStorage without stock photos)
   const [items, setItems] = useState(() => {
@@ -634,7 +692,9 @@ function App() {
     date: new Date().toISOString().split('T')[0],
     description: '',
   };
-  const [reportType, setReportType] = useState('Lost'); // 'Lost' | 'Found'
+  const [reportType, setReportType] = useState(() => {
+    return sessionStorage.getItem('findly_report_type') || 'Lost';
+  }); // 'Lost' | 'Found'
   const [reportForm, setReportForm] = useState(EMPTY_REPORT_FORM);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [uploadedPhotoPreview, setUploadedPhotoPreview] = useState(null);
@@ -685,7 +745,7 @@ function App() {
   }, [reportForm.itemName, reportForm.category, reportForm.location, reportForm.brand, reportForm.description]);
 
   // Browse Items Filter States (Image 2)
-  const [browseSearch, setBrowseSearch] = useState('');
+  const [browseSearch, setBrowseSearch] = useState(() => sessionStorage.getItem('findly_browse_search') || '');
   const [typeFilters, setTypeFilters] = useState({ Lost: false, Found: false });
   const [categoryFilters, setCategoryFilters] = useState({
     Bags: false,
@@ -695,14 +755,26 @@ function App() {
   });
   const [timeFilter, setTimeFilter] = useState('Any time');
   const [sortBy, setSortBy] = useState('Newest first');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = Number(sessionStorage.getItem('findly_browse_page'));
+    return Number.isFinite(saved) && saved >= 1 ? saved : 1;
+  });
 
   // Active Modals & Claim States
   const [selectedItemModal, setSelectedItemModal] = useState(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin'); // 'signin' | 'register'
   const [activeClaimModal, setActiveClaimModal] = useState(null);
-  const [claimsFilter, setClaimsFilter] = useState('all'); // 'all' | 'my'
+  const [claimsFilter, setClaimsFilter] = useState(() => sessionStorage.getItem('findly_claims_filter') || 'all'); // 'all' | 'my'
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('findly_report_type', reportType);
+      sessionStorage.setItem('findly_browse_search', browseSearch);
+      sessionStorage.setItem('findly_browse_page', String(currentPage));
+      sessionStorage.setItem('findly_claims_filter', claimsFilter);
+    } catch (e) {}
+  }, [reportType, browseSearch, currentPage, claimsFilter]);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('findly_user');
@@ -1319,6 +1391,8 @@ function App() {
                   onClick={() => {
                     setCurrentUser(null);
                     localStorage.removeItem('findly_user');
+                    sessionStorage.removeItem('findly_active_tab');
+                    localStorage.removeItem('findly_active_tab');
                     setActiveTab('home');
                     showToast('Signed out of campus session.');
                   }}
